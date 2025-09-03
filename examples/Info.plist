@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+    <dict>
+        <key>CFBundleDisplayName</key>
+        <string>Audio Capture Example</string>
+        <key>CFBundleExecutable</key>
+        <string>Electron</string>
+        <key>CFBundleIconFile</key>
+        <string>icon.icns</string>
+        <key>CFBundleIdentifier</key>
+        <string>com.example.electron-audio-capture</string>
+        <key>CFBundleInfoDictionaryVersion</key>
+        <string>6.0</string>
+        <key>CFBundleName</key>
+        <string>Audio Capture Example</string>
+        <key>CFBundlePackageType</key>
+        <string>APPL</string>
+        <key>CFBundleShortVersionString</key>
+        <string>1.0.0</string>
+        <key>CFBundleVersion</key>
+        <string>1.0.0</string>
+        <key>LSMinimumSystemVersion</key>
+        <string>10.14.0</string>
+        <key>NSMainNibFile</key>
+        <string>MainMenu</string>
+        <key>NSPrincipalClass</key>
+        <string>NSApplication</string>
+        <key>NSHighResolutionCapable</key>
+        <true/>
+        <key>NSSupportsAutomaticGraphicsSwitching</key>
+        <true/>
+
+        <!-- 音频捕获权限描述 -->
+        <key>NSMicrophoneUsageDescription</key>
+        <string>此应用程序需要访问麦克风以捕获系统音频数据用于演示目的。</string>
+
+        <!-- 音频捕获权限描述 - 用于进程音频捕获 -->
+        <key>NSAudioCaptureUsageDescription</key>
+        <string>此应用程序需要访问音频捕获功能以监听指定进程的音频输出。这是一个演示应用程序，用于展示如何捕获系统中特定进程的音频数据。</string>
+
+        <!-- 系统音频访问权限 -->
+        <key>NSSystemAudioUsageDescription</key>
+        <string>此应用程序需要访问系统音频以捕获其他应用程序的音频输出。</string>
+    </dict>
+</plist>

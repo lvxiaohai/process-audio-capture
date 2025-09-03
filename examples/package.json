@@ -1,0 +1,34 @@
+{
+  "name": "electron-app-example",
+  "version": "1.0.0",
+  "description": "使用electron-audio-capture的TypeScript示例应用",
+  "main": "src/main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "nodemon --watch src --exec electron ."
+  },
+  "build": {
+    "appId": "com.example.electron-audio-capture",
+    "productName": "Audio Capture Example",
+    "extraMetadata": {
+      "NSMicrophoneUsageDescription": "此应用程序需要访问麦克风以捕获系统音频数据用于演示目的。",
+      "NSAudioCaptureUsageDescription": "此应用程序需要访问音频捕获功能以监听指定进程的音频输出。这是一个演示应用程序，用于展示如何捕获系统中特定进程的音频数据。",
+      "NSSystemAudioUsageDescription": "此应用程序需要访问系统音频以捕获其他应用程序的音频输出。"
+    },
+    "mac": {
+      "extendInfo": {
+        "NSMicrophoneUsageDescription": "此应用程序需要访问麦克风以捕获系统音频数据用于演示目的。",
+        "NSAudioCaptureUsageDescription": "此应用程序需要访问音频捕获功能以监听指定进程的音频输出。这是一个演示应用程序，用于展示如何捕获系统中特定进程的音频数据。",
+        "NSSystemAudioUsageDescription": "此应用程序需要访问系统音频以捕获其他应用程序的音频输出。"
+      }
+    }
+  },
+  "dependencies": {
+    "electron-audio-capture": "file:../"
+  },
+  "devDependencies": {
+    "electron": "^28.0.0",
+    "electron-rebuild": "^3.2.9",
+    "nodemon": "^3.1.10"
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "name": "electron-audio-capture",
+  "version": "1.0.0",
+  "description": "Electron原生插件音频捕获示例",
+  "main": "js/index.js",
+  "types": "js/index.d.ts",
+  "files": [
+    "js",
+    "src",
+    "include",
+    "binding.gyp",
+    "build/Release/audio_capture.node"
+  ],
+  "scripts": {
+    "clean": "node -e \"require('fs').rmSync('build', { recursive: true, force: true })\"",
+    "build": "node-gyp configure && node-gyp build",
+    "install": "node-gyp rebuild",
+    "prepare": "npm run build"
+  },
+  "dependencies": {
+    "bindings": "^1.5.0",
+    "node-addon-api": "^7.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^16.x",
+    "node-gyp": "^9.x"
+  }
+}
