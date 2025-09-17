@@ -1,7 +1,16 @@
 {
   "name": "audio-capture-example",
   "version": "1.0.0",
-  "description": "使用electron-audio-capture的示例应用",
+  "description": "使用process-audio-capture的示例应用",
+  "keywords": [
+    "electron",
+    "audio",
+    "capture",
+    "example",
+    "demo",
+    "process-audio"
+  ],
+  "author": "lvxiaohai",
   "main": "./out/main/index.js",
   "scripts": {
     "format": "prettier --write .",
@@ -19,6 +28,15 @@
     "build:linux": "npm run build && electron-builder --linux"
   },
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/lvxiaohai/process-audio-capture.git",
+    "directory": "examples"
+  },
+  "bugs": {
+    "url": "https://github.com/lvxiaohai/process-audio-capture/issues"
+  },
+  "homepage": "https://github.com/lvxiaohai/process-audio-capture/tree/main/examples#readme",
   "dependencies": {
     "@electron-toolkit/preload": "^3.0.2",
     "@electron-toolkit/utils": "^4.0.0",

@@ -2,6 +2,19 @@
   "name": "process-audio-capture",
   "version": "1.0.0",
   "description": "Native process-level audio capture for Node.js and Electron applications",
+  "keywords": [
+    "electron",
+    "audio",
+    "capture",
+    "process",
+    "native",
+    "addon",
+    "macos",
+    "windows",
+    "audio-capture",
+    "process-audio"
+  ],
+  "author": "lvxiaohai",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
   "types": "dist/index.d.ts",
@@ -24,6 +37,14 @@
     "prepublishOnly": "npm run clean:ts && npm run build:ts"
   },
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/lvxiaohai/process-audio-capture.git"
+  },
+  "bugs": {
+    "url": "https://github.com/lvxiaohai/process-audio-capture/issues"
+  },
+  "homepage": "https://github.com/lvxiaohai/process-audio-capture#readme",
   "dependencies": {
     "bindings": "^1.5.0",
     "node-addon-api": "^7.0.0"
