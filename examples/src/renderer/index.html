@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>音频捕获插件演示</title>
+  <link href="./assets/main.css" rel="stylesheet" type="text/css" />
+</head>
+<body>
+<div class="container">
+  <h1>音频捕获插件演示</h1>
+  <p>这个示例展示了如何使用process-audio-capture插件捕获指定进程的音频</p>
+
+  <div class="section">
+    <h2>1. 权限管理</h2>
+    <div>
+      <button id="checkPermissionButton">检查权限</button>
+      <button id="requestPermissionButton">请求权限</button>
+    </div>
+    <div class="result" id="permissionStatus">权限状态将显示在这里...</div>
+  </div>
+
+  <div class="section">
+    <h2>2. 获取进程列表</h2>
+    <button id="getProcessesButton">获取进程列表</button>
+    <div class="result">
+      <table id="processTable">
+        <thead>
+        <tr>
+          <th>图标</th>
+          <th>PID</th>
+          <th>进程名</th>
+          <th>描述</th>
+          <th>操作</th>
+        </tr>
+        </thead>
+        <tbody id="processTableBody">
+        <tr>
+          <td colspan="5">点击上方按钮获取进程列表</td>
+        </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>3. 捕获音频</h2>
+    <div>
+      <button disabled id="startCaptureButton">开始捕获</button>
+      <button disabled id="stopCaptureButton">停止捕获</button>
+    </div>
+    <div class="result" id="captureStatus">未开始捕获</div>
+
+    <div class="audio-controls">
+      <h3>音频录制与播放</h3>
+      <div>
+        <button class="record-button" disabled id="startRecordButton">开始录制</button>
+        <button class="record-button" disabled id="stopRecordButton">停止录制</button>
+        <button class="play-button" disabled id="playAudioButton">播放录制的音频</button>
+      </div>
+      <div id="recordingStatus" style="margin-top: 10px;">未开始录制</div>
+      <audio class="audio-player" controls id="audioPlayer"></audio>
+    </div>
+
+    <h3>音频数据日志</h3>
+    <div class="result" id="audioLog"></div>
+  </div>
+</div>
+
+<script src="./src/renderer.ts" type="module"></script>
+</body>
+</html>

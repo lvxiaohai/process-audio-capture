@@ -1,28 +1,59 @@
 {
-  "name": "electron-audio-capture",
+  "name": "process-audio-capture",
   "version": "1.0.0",
-  "description": "Electron原生插件音频捕获示例",
-  "main": "js/index.js",
-  "types": "js/index.d.ts",
+  "description": "Native process-level audio capture for Node.js and Electron applications",
+  "main": "dist/cjs/index.cjs",
+  "module": "dist/mjs/index.mjs",
+  "types": "dist/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/types/index.d.ts",
+      "import": "./dist/mjs/index.mjs",
+      "require": "./dist/cjs/index.cjs"
+    },
+    "./main": {
+      "types": "./dist/types/main.d.ts",
+      "import": "./dist/mjs/main.mjs",
+      "require": "./dist/cjs/main.cjs"
+    },
+    "./preload": {
+      "types": "./dist/types/preload.d.ts",
+      "import": "./dist/mjs/preload.mjs",
+      "require": "./dist/cjs/preload.cjs"
+    }
+  },
   "files": [
+    "dist",
     "js",
     "src",
     "include",
-    "binding.gyp",
-    "build/Release/audio_capture.node"
+    "binding.gyp"
   ],
   "scripts": {
-    "clean": "node -e \"require('fs').rmSync('build', { recursive: true, force: true })\"",
-    "build": "node-gyp configure && node-gyp build",
+    "clean": "npm run clean:native && npm run clean:ts",
+    "clean:native": "rimraf build",
+    "clean:ts": "rimraf dist",
+    "build": "npm run clean && npm run build:native && npm run build:ts",
+    "build:native": "node-gyp rebuild",
+    "build:ts": "vite build",
+    "watch": "vite build --watch",
     "install": "node-gyp rebuild",
-    "prepare": "npm run build"
+    "prepublishOnly": "npm run clean:ts && npm run build:ts"
   },
+  "license": "MIT",
   "dependencies": {
     "bindings": "^1.5.0",
     "node-addon-api": "^7.0.0"
   },
   "devDependencies": {
-    "@types/node": "^16.x",
-    "node-gyp": "^9.x"
+    "@types/bindings": "^1.5.5",
+    "@types/node": "^20.19.15",
+    "electron": "^28.0.0",
+    "node-gyp": "^9.x",
+    "rimraf": "^5.0.0",
+    "rollup": "^4.50.2",
+    "typescript": "^5.0.0",
+    "vite": "^7.1.5",
+    "vite-plugin-dts": "^4.5.4"
   }
 }

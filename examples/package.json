@@ -1,34 +1,41 @@
 {
-  "name": "electron-app-example",
+  "name": "audio-capture-example",
   "version": "1.0.0",
-  "description": "使用electron-audio-capture的TypeScript示例应用",
-  "main": "src/main.js",
+  "description": "使用electron-audio-capture的示例应用",
+  "main": "./out/main/index.js",
   "scripts": {
-    "start": "electron .",
-    "dev": "nodemon --watch src --exec electron ."
+    "format": "prettier --write .",
+    "lint": "eslint --cache .",
+    "typecheck:node": "tsc --noEmit -p tsconfig.node.json --composite false",
+    "typecheck:web": "tsc --noEmit -p tsconfig.web.json --composite false",
+    "typecheck": "npm run typecheck:node && npm run typecheck:web",
+    "start": "electron-vite preview",
+    "dev": "electron-vite dev",
+    "build": "npm run typecheck && electron-vite build",
+    "postinstall": "electron-builder install-app-deps",
+    "build:unpack": "npm run build && electron-builder --dir",
+    "build:win": "npm run build && electron-builder --win",
+    "build:mac": "npm run build && electron-builder --mac",
+    "build:linux": "npm run build && electron-builder --linux"
   },
-  "build": {
-    "appId": "com.example.electron-audio-capture",
-    "productName": "Audio Capture Example",
-    "extraMetadata": {
-      "NSMicrophoneUsageDescription": "此应用程序需要访问麦克风以捕获系统音频数据用于演示目的。",
-      "NSAudioCaptureUsageDescription": "此应用程序需要访问音频捕获功能以监听指定进程的音频输出。这是一个演示应用程序，用于展示如何捕获系统中特定进程的音频数据。",
-      "NSSystemAudioUsageDescription": "此应用程序需要访问系统音频以捕获其他应用程序的音频输出。"
-    },
-    "mac": {
-      "extendInfo": {
-        "NSMicrophoneUsageDescription": "此应用程序需要访问麦克风以捕获系统音频数据用于演示目的。",
-        "NSAudioCaptureUsageDescription": "此应用程序需要访问音频捕获功能以监听指定进程的音频输出。这是一个演示应用程序，用于展示如何捕获系统中特定进程的音频数据。",
-        "NSSystemAudioUsageDescription": "此应用程序需要访问系统音频以捕获其他应用程序的音频输出。"
-      }
-    }
-  },
+  "license": "MIT",
   "dependencies": {
-    "electron-audio-capture": "file:../"
+    "@electron-toolkit/preload": "^3.0.2",
+    "@electron-toolkit/utils": "^4.0.0",
+    "process-audio-capture": "^1.0.0"
   },
   "devDependencies": {
-    "electron": "^28.0.0",
-    "electron-rebuild": "^3.2.9",
-    "nodemon": "^3.1.10"
-  }
+    "@electron-toolkit/eslint-config-prettier": "^3.0.0",
+    "@electron-toolkit/eslint-config-ts": "^3.0.0",
+    "@electron-toolkit/tsconfig": "^1.0.1",
+    "@types/node": "^22.16.5",
+    "electron": "^37.2.3",
+    "electron-builder": "^25.1.8",
+    "electron-vite": "^4.0.0",
+    "eslint": "^9.31.0",
+    "prettier": "^3.6.2",
+    "typescript": "^5.8.3",
+    "vite": "^7.0.5"
+  },
+  "packageManager": "yarn@1.22.22+sha1.ac34549e6aa8e7ead463a7407e1c7390f61a6610"
 }
