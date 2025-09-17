@@ -2,26 +2,9 @@
   "name": "process-audio-capture",
   "version": "1.0.0",
   "description": "Native process-level audio capture for Node.js and Electron applications",
-  "main": "dist/cjs/index.cjs",
-  "module": "dist/mjs/index.mjs",
-  "types": "dist/types/index.d.ts",
-  "exports": {
-    ".": {
-      "types": "./dist/types/index.d.ts",
-      "import": "./dist/mjs/index.mjs",
-      "require": "./dist/cjs/index.cjs"
-    },
-    "./main": {
-      "types": "./dist/types/main.d.ts",
-      "import": "./dist/mjs/main.mjs",
-      "require": "./dist/cjs/main.cjs"
-    },
-    "./preload": {
-      "types": "./dist/types/preload.d.ts",
-      "import": "./dist/mjs/preload.mjs",
-      "require": "./dist/cjs/preload.cjs"
-    }
-  },
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
   "files": [
     "dist",
     "js",

@@ -22,7 +22,7 @@ npm install process-audio-capture
 **1. Main Process Setup**
 
 ```typescript
-import { setupAudioCaptureIpc } from "process-audio-capture/main";
+import { setupAudioCaptureIpc } from "process-audio-capture/dist/main";
 // Setup IPC handlers
 setupAudioCaptureIpc();
 ```
@@ -30,7 +30,7 @@ setupAudioCaptureIpc();
 **2. Preload Script**
 
 ```typescript
-import { exposeAudioCaptureApi } from "process-audio-capture/preload";
+import { exposeAudioCaptureApi } from "process-audio-capture/dist/preload";
 // Expose API to renderer process
 exposeAudioCaptureApi();
 ```

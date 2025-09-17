@@ -1,7 +1,7 @@
 import { app, BrowserWindow, dialog, shell } from 'electron'
 import { join } from 'path'
 import { electronApp, is, optimizer } from '@electron-toolkit/utils'
-import { setupAudioCaptureIpc } from 'process-audio-capture/main'
+import { setupAudioCaptureIpc } from 'process-audio-capture/dist/main'
 
 // 直接引入 audioCapture 类 需要手动实现与渲染进程的通信
 // import { audioCapture, AudioCapture } from 'process-audio-capture'

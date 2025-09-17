@@ -22,7 +22,7 @@ npm install process-audio-capture
 **1. 主进程设置**
 
 ```typescript
-import { setupAudioCaptureIpc } from "process-audio-capture/main";
+import { setupAudioCaptureIpc } from "process-audio-capture/dist/main";
 // 设置 IPC 处理程序
 setupAudioCaptureIpc();
 ```
@@ -30,7 +30,7 @@ setupAudioCaptureIpc();
 **2. Preload 脚本**
 
 ```typescript
-import { exposeAudioCaptureApi } from "process-audio-capture/preload";
+import { exposeAudioCaptureApi } from "process-audio-capture/dist/preload";
 // 暴露 API 给渲染进程
 exposeAudioCaptureApi();
 ```

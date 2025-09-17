@@ -11,18 +11,17 @@ export default defineConfig({
         preload: resolve(__dirname, "js/preload.ts"),
       },
     },
+    outDir: "dist",
     rollupOptions: {
       external: ["bindings", "electron", "node-addon-api"],
       output: [
         {
           format: "cjs",
-          dir: "dist/cjs",
-          entryFileNames: "[name].cjs",
+          entryFileNames: "[name].js",
           exports: "named",
         },
         {
           format: "es",
-          dir: "dist/mjs",
           entryFileNames: "[name].mjs",
         },
       ],
@@ -33,7 +32,6 @@ export default defineConfig({
   },
   plugins: [
     dts({
-      outDir: "dist/types",
       copyDtsFiles: true,
       compilerOptions: {
         declarationMap: false,
