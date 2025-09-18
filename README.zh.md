@@ -1,14 +1,15 @@
 # process-audio-capture
 
-**中文** | [English](./README.md)
+[English](./README.md) | **中文**
 
-Electron 原生插件，支持捕获**指定进程**的音频数据
+Node.js 和 Electron 原生插件，支持捕获**指定进程**的音频数据
 
 ## 快速开始
 
 ### 系统要求
 
-- macOS 14.4+ / Windows 10+
+- macOS 14.4+ 
+- Windows 10+
 - Linux 暂不支持
 
 ### 安装
@@ -17,7 +18,9 @@ Electron 原生插件，支持捕获**指定进程**的音频数据
 npm install process-audio-capture
 ```
 
-### 基本用法 见 examples
+## 使用示例
+
+### Electron 应用基本使用
 
 **1. 主进程设置**
 
@@ -39,29 +42,70 @@ exposeAudioCaptureApi();
 
 ```typescript
 // 使用 window.processAudioCapture 访问所有 API
+
+// 获取进程列表
 const processes = await window.processAudioCapture.getProcessList();
+
+// 监听音频数据
+window.processAudioCapture.onAudioData((audioData) => {
+  console.log("音频数据:", audioData);
+});
+
+// 开始捕获指定进程音频
+const pid = processes[0].pid; // 示例：捕获第一个进程
 await window.processAudioCapture.startCapture(pid);
+
 ```
 
-### 高级用法
+### Electron 应用自定义实现
 
 ```typescript
-import { audioCapture } from "process-audio-capture";
-// 直接在主进程中使用，需自行实现 IPC
+// 主进程引入 auidioCapture 对象或 AudioCapture 类 
+// 自主定义 IPC 处理逻辑
+import { audioCapture, AudioCapture } from "process-audio-capture";
 ```
+
+### Node.js 应用
+
+```javascript
+const {audioCapture} = require("process-audio-capture");
+
+// 检查平台支持
+if (audioCapture.isPlatformSupported()) {
+  // 请求权限
+  const permission = await audioCapture.requestPermission();
+
+  if (permission.status === "authorized") {
+    // 获取进程列表
+    const processes = audioCapture.getProcessList();
+
+    // 开始捕获音频
+    audioCapture.startCapture(processes[0].pid, (audioData) => {
+      console.log("音频数据:", audioData);
+    });
+  }
+}
+````
+
+### 完整示例
+
+- [Node.js 示例](./examples/node/) - 命令行音频捕获工具
+- [Electron 示例](./examples/electron/) - 图形界面音频捕获应用
 
 ## API 参考
 
-| 方法                    | 描述                     | 返回值                      |
-| ----------------------- | ------------------------ | --------------------------- |
-| `checkPermission()`     | 检查音频捕获权限         | `Promise<PermissionStatus>` |
-| `requestPermission()`   | 请求音频捕获权限         | `Promise<PermissionStatus>` |
-| `getProcessList()`      | 获取可捕获音频的进程列表 | `Promise<ProcessInfo[]>`    |
-| `startCapture(pid)`     | 开始捕获指定进程音频     | `Promise<boolean>`          |
-| `stopCapture()`         | 停止音频捕获             | `Promise<boolean>`          |
-| `onAudioData(callback)` | 监听音频数据流           | `void`                      |
+### 核心方法
 
-## 权限说明
+| 方法                          | 描述                     | 返回值                      |
+| ----------------------------- | ------------------------ | --------------------------- |
+| `isPlatformSupported()`       | 检查当前平台是否支持     | `boolean`                   |
+| `checkPermission()`           | 检查音频捕获权限         | `PermissionStatus`          |
+| `requestPermission()`         | 请求音频捕获权限         | `Promise<PermissionStatus>` |
+| `getProcessList()`            | 获取可捕获音频的进程列表 | `ProcessInfo[]`             |
+| `startCapture(pid, callback)` | 开始捕获指定进程音频     | `boolean`                   |
+| `stopCapture()`               | 停止音频捕获             | `boolean`                   |
+
+## 权限配置
 
 ### Windows
 

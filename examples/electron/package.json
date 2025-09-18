@@ -1,7 +1,7 @@
 {
   "name": "audio-capture-example",
   "version": "1.0.0",
-  "description": "使用process-audio-capture的示例应用",
+  "description": "electron使用process-audio-capture的示例应用",
   "keywords": [
     "electron",
     "audio",
@@ -31,16 +31,16 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/lvxiaohai/process-audio-capture.git",
-    "directory": "examples"
+    "directory": "examples/electron"
   },
   "bugs": {
     "url": "https://github.com/lvxiaohai/process-audio-capture/issues"
   },
-  "homepage": "https://github.com/lvxiaohai/process-audio-capture/tree/main/examples#readme",
+  "homepage": "https://github.com/lvxiaohai/process-audio-capture/tree/main/examples/electron#readme",
   "dependencies": {
     "@electron-toolkit/preload": "^3.0.2",
     "@electron-toolkit/utils": "^4.0.0",
-    "process-audio-capture": "^1.0.0"
+    "process-audio-capture": "file:../.."
   },
   "devDependencies": {
     "@electron-toolkit/eslint-config-prettier": "^3.0.0",

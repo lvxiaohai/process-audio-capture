@@ -1126,7 +1126,7 @@ baseline-browser-mapping@^2.8.2:
 
 bindings@^1.5.0:
   version "1.5.0"
-  resolved "https://registry.npmmirror.com/bindings/-/bindings-1.5.0.tgz#10353c9e945334bc0511a6d90b38fbc7c9c504df"
+  resolved "http://172.16.164.133:4873/bindings/-/bindings-1.5.0.tgz#10353c9e945334bc0511a6d90b38fbc7c9c504df"
   integrity sha512-p2q/t/mhvuOj/UeLlV6566GD/guowlr0hHxClI0W9m7MWYkL1F0hLo+0Aexs9HSPCtR1SXQ0TD3MMKrXZajbiQ==
   dependencies:
     file-uri-to-path "1.0.0"
@@ -1936,7 +1936,7 @@ file-entry-cache@^8.0.0:
 
 file-uri-to-path@1.0.0:
   version "1.0.0"
-  resolved "https://registry.npmmirror.com/file-uri-to-path/-/file-uri-to-path-1.0.0.tgz#553a7b8446ff6f684359c445f1e37a05dacc33dd"
+  resolved "http://172.16.164.133:4873/file-uri-to-path/-/file-uri-to-path-1.0.0.tgz#553a7b8446ff6f684359c445f1e37a05dacc33dd"
   integrity sha512-0Zt+s3L7Vf1biwWZ29aARiVYLx7iMGnEUl9x33fbB/j3jR81u/O2LbqK+Bm1CDSNDKVtJ/YjwY7TUd5SkeLQLw==
 
 filelist@^1.0.4:
@@ -2816,7 +2816,7 @@ node-addon-api@^1.6.3:
 
 node-addon-api@^7.0.0:
   version "7.1.1"
-  resolved "https://registry.npmmirror.com/node-addon-api/-/node-addon-api-7.1.1.tgz#1aba6693b0f255258a049d621329329322aad558"
+  resolved "http://172.16.164.133:4873/node-addon-api/-/node-addon-api-7.1.1.tgz#1aba6693b0f255258a049d621329329322aad558"
   integrity sha512-5m3bsyrjFWE1xf7nz7YXdN4udnVtXK6/Yfgn5qnahL6bCkf2yKt4k3nuTKAtT4r3IG8JNR2ncsIMdZuAzJjHQQ==
 
 node-api-version@^0.2.0:
@@ -3037,8 +3037,8 @@ prettier@^3.6.2:
   resolved "https://registry.npmmirror.com/prettier/-/prettier-3.6.2.tgz#ccda02a1003ebbb2bfda6f83a074978f608b9393"
   integrity sha512-I7AIg5boAr5R0FFtJ6rCfD+LFsWHp81dolrFD8S79U9tb8Az2nGrJncnMSnys+bpQJfRUzqs9hnA81OAA3hCuQ==
 
-"process-audio-capture@file:..":
-  version "1.0.0"
+"process-audio-capture@file:../..":
+  version "1.0.1"
   dependencies:
     bindings "^1.5.0"
     node-addon-api "^7.0.0"

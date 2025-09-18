@@ -74,5 +74,6 @@ coverage/
 .env.production.local
 
 # 示例
-/examples/dist/
-/examples/out/
+/examples/electron/dist/
+/examples/electron/out/
+/examples/node/capture.wav

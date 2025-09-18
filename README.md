@@ -1,14 +1,15 @@
 # process-audio-capture
 
-[中文](./README.zh.md) | **English**
+**English** | [中文](./README.zh.md)
 
-Electron native plugin for capturing audio from **specific processes**
+Node.js and Electron native plugin for capturing audio from **specific processes**
 
 ## Quick Start
 
 ### System Requirements
 
-- macOS 14.4+ / Windows 10+
+- macOS 14.4+
+- Windows 10+
 - Linux not supported
 
 ### Installation
@@ -17,7 +18,9 @@ Electron native plugin for capturing audio from **specific processes**
 npm install process-audio-capture
 ```
 
-### Basic Usage (see examples)
+## Usage Examples
+
+### Basic Electron Application Usage
 
 **1. Main Process Setup**
 
@@ -39,27 +42,67 @@ exposeAudioCaptureApi();
 
 ```typescript
 // Use window.processAudioCapture to access all APIs
+
+// Get process list
 const processes = await window.processAudioCapture.getProcessList();
+
+// Listen to audio data
+window.processAudioCapture.onAudioData((audioData) => {
+  console.log("Audio data:", audioData);
+});
+
+// Start capturing audio from specified process
+const pid = processes[0].pid; // Example: capture from first process
 await window.processAudioCapture.startCapture(pid);
 ```
 
-### Advanced Usage
+### Custom Electron Application Implementation
 
 ```typescript
-import { audioCapture } from "process-audio-capture";
-// Use directly in main process, implement IPC yourself
+// Import audioCapture object or AudioCapture class in main process
+// Implement custom IPC handling logic
+import { audioCapture, AudioCapture } from "process-audio-capture";
 ```
+
+### Node.js Application
+
+```javascript
+const { audioCapture } = require("process-audio-capture");
+
+// Check platform support
+if (audioCapture.isPlatformSupported()) {
+  // Request permission
+  const permission = await audioCapture.requestPermission();
+
+  if (permission.status === "authorized") {
+    // Get process list
+    const processes = audioCapture.getProcessList();
+
+    // Start capturing audio
+    audioCapture.startCapture(processes[0].pid, (audioData) => {
+      console.log("Audio data:", audioData);
+    });
+  }
+}
+```
+
+### Complete Examples
+
+- [Node.js Example](./examples/node/) - Command line audio capture tool
+- [Electron Example](./examples/electron/) - GUI audio capture application
 
 ## API Reference
 
-| Method                  | Description                        | Return Value                |
-| ----------------------- | ---------------------------------- | --------------------------- |
-| `checkPermission()`     | Check audio capture permission     | `Promise<PermissionStatus>` |
-| `requestPermission()`   | Request audio capture permission   | `Promise<PermissionStatus>` |
-| `getProcessList()`      | Get list of processes with audio   | `Promise<ProcessInfo[]>`    |
-| `startCapture(pid)`     | Start capturing audio from process | `Promise<boolean>`          |
-| `stopCapture()`         | Stop audio capture                 | `Promise<boolean>`          |
-| `onAudioData(callback)` | Listen to audio data stream        | `void`                      |
+### Core Methods
+
+| Method                        | Description                            | Return Value                |
+| ----------------------------- | -------------------------------------- | --------------------------- |
+| `isPlatformSupported()`       | Check if current platform is supported | `boolean`                   |
+| `checkPermission()`           | Check audio capture permission         | `PermissionStatus`          |
+| `requestPermission()`         | Request audio capture permission       | `Promise<PermissionStatus>` |
+| `getProcessList()`            | Get list of processes with audio       | `ProcessInfo[]`             |
+| `startCapture(pid, callback)` | Start capturing audio from process     | `boolean`                   |
+| `stopCapture()`               | Stop audio capture                     | `boolean`                   |
 
 ## Permission Setup
 

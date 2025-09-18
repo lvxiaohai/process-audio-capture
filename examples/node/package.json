@@ -1,0 +1,22 @@
+{
+  "name": "process-audio-capture",
+  "version": "1.0.0",
+  "description": "Node.js example for process-audio-capture",
+  "main": "main.js",
+  "scripts": {
+    "start": "node main.js",
+    "install-deps": "npm install"
+  },
+  "dependencies": {
+    "process-audio-capture": "file:../../",
+    "wav": "^1.0.2"
+  },
+  "keywords": [
+    "audio",
+    "capture",
+    "process",
+    "node",
+    "example"
+  ],
+  "license": "MIT"
+}
