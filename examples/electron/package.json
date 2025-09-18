@@ -40,7 +40,7 @@
   "dependencies": {
     "@electron-toolkit/preload": "^3.0.2",
     "@electron-toolkit/utils": "^4.0.0",
-    "process-audio-capture": "file:../.."
+    "process-audio-capture": "latest",
   },
   "devDependencies": {
     "@electron-toolkit/eslint-config-prettier": "^3.0.0",
@@ -54,6 +54,5 @@
     "prettier": "^3.6.2",
     "typescript": "^5.8.3",
     "vite": "^7.0.5"
-  },
-  "packageManager": "yarn@1.22.22+sha1.ac34549e6aa8e7ead463a7407e1c7390f61a6610"
+  }
 }
