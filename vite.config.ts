@@ -13,7 +13,7 @@ export default defineConfig({
     },
     outDir: "dist",
     rollupOptions: {
-      external: ["bindings", "electron", "node-addon-api"],
+      external: ["bindings", "electron", "node-addon-api", "events"],
       output: [
         {
           format: "cjs",

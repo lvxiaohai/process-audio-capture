@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from "electron";
-import type { ProcessAudioCaptureApi } from "./types";
+import type { AudioData, ProcessAudioCaptureApi } from "./types";
 import { AUDIO_CAPTURE_IPC_PREFIX } from "./shared";
 
 const PREFIX = AUDIO_CAPTURE_IPC_PREFIX;
@@ -19,8 +19,30 @@ export const processAudioCapture: ProcessAudioCaptureApi = {
   getProcessList: () => ipcRendererInvoke(`${PREFIX}:get-process-list`),
   startCapture: (pid) => ipcRendererInvoke(`${PREFIX}:start-capture`, pid),
   stopCapture: () => ipcRendererInvoke(`${PREFIX}:stop-capture`),
+  isCapturing: () => ipcRendererInvoke(`${PREFIX}:is-capturing`),
+  onCapturing: (callback) => {
+    const id = uuid();
+    const listener = (_event: Electron.IpcRendererEvent, data: boolean) =>
+      callback(data);
+    ipcRenderer.send(`${PREFIX}:on-capturing`, id);
+    ipcRenderer.on(`${PREFIX}:on-capturing:${id}`, listener);
+
+    return () => {
+      ipcRenderer.off(`${PREFIX}:on-capturing:${id}`, listener);
+      ipcRenderer.send(`${PREFIX}:off-capturing`, id);
+    };
+  },
   onAudioData: (callback) => {
-    ipcRenderer.on(`${PREFIX}:audio-data`, (_event, data) => callback(data));
+    const id = uuid();
+    const listener = (_event: Electron.IpcRendererEvent, data: AudioData) =>
+      callback(data);
+    ipcRenderer.send(`${PREFIX}:on-audio-data`, id);
+    ipcRenderer.on(`${PREFIX}:on-audio-data:${id}`, listener);
+
+    return () => {
+      ipcRenderer.off(`${PREFIX}:on-audio-data:${id}`, listener);
+      ipcRenderer.send(`${PREFIX}:off-audio-data`, id);
+    };
   },
 };
 
@@ -62,4 +84,8 @@ const isError = (err: any): err is Error => {
     err instanceof Error ||
     (err && typeof err.message === "string" && typeof err.stack === "string")
   );
+};
+
+const uuid = () => {
+  return crypto.randomUUID();
 };

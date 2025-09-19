@@ -1,5 +1,6 @@
 import { ipcMain } from "electron";
 import { audioCapture } from "./core";
+import type { AudioData } from "./types";
 import { AUDIO_CAPTURE_IPC_PREFIX } from "./shared";
 
 const PREFIX = AUDIO_CAPTURE_IPC_PREFIX;
@@ -42,11 +43,9 @@ export const setupAudioCaptureIpc = () => {
     }
   });
 
-  ipcMain.handle(`${PREFIX}:start-capture`, (event, pid) => {
+  ipcMain.handle(`${PREFIX}:start-capture`, (_event, pid) => {
     try {
-      return audioCapture.startCapture(pid, (audioData) => {
-        event.sender.send(`${PREFIX}:audio-data`, audioData);
-      });
+      return audioCapture.startCapture(pid);
     } catch (error: any) {
       return error;
     }
@@ -58,5 +57,61 @@ export const setupAudioCaptureIpc = () => {
     } catch (error: any) {
       return error;
     }
+  });
+
+  ipcMain.handle(`${PREFIX}:is-capturing`, () => {
+    try {
+      return audioCapture.isCapturing;
+    } catch (error: any) {
+      return error;
+    }
+  });
+
+  listenAudioData();
+
+  listenCapturing();
+};
+
+const listenAudioData = () => {
+  const listeners = new Map<string, (audioData: AudioData) => void>();
+
+  ipcMain.on(`${PREFIX}:on-audio-data`, (event, id) => {
+    listeners.set(id, (audioData) => {
+      if (!event.sender.isDestroyed()) {
+        event.sender.send(`${PREFIX}:on-audio-data:${id}`, audioData);
+      }
+    });
+  });
+
+  ipcMain.on(`${PREFIX}:off-audio-data`, (_event, id) => {
+    listeners.delete(id);
+  });
+
+  audioCapture.on("audio-data", (audioData) => {
+    listeners.forEach((listener) => {
+      listener(audioData);
+    });
+  });
+};
+
+const listenCapturing = () => {
+  const listeners = new Map<string, (capturing: boolean) => void>();
+
+  ipcMain.on(`${PREFIX}:on-capturing`, (event, id) => {
+    listeners.set(id, (capturing) => {
+      if (!event.sender.isDestroyed()) {
+        event.sender.send(`${PREFIX}:on-capturing:${id}`, capturing);
+      }
+    });
+  });
+
+  ipcMain.on(`${PREFIX}:off-capturing`, (_event, id) => {
+    listeners.delete(id);
+  });
+
+  audioCapture.on("capturing", (capturing) => {
+    listeners.forEach((listener) => {
+      listener(capturing);
+    });
   });
 };

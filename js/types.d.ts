@@ -40,6 +40,11 @@ export interface PermissionStatus {
 }
 
 /**
+ * 取消订阅
+ */
+export type Unsubscribe = () => void;
+
+/**
  * 定义暴露给渲染进程的API接口
  */
 export interface ProcessAudioCaptureApi {
@@ -58,8 +63,14 @@ export interface ProcessAudioCaptureApi {
   /** 停止捕获 */
   stopCapture: () => Promise<boolean>;
 
+  /** 检查是否正在捕获音频 */
+  isCapturing: () => Promise<boolean>;
+
   /** 监听音频数据 */
-  onAudioData: (callback: (data: AudioData) => void) => void;
+  onAudioData: (callback: (data: AudioData) => void) => Unsubscribe;
+
+  /** 监听是否正在捕获音频 */
+  onCapturing: (callback: (capturing: boolean) => void) => Unsubscribe;
 }
 
 declare global {

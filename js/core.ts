@@ -1,5 +1,6 @@
 import bindings from "bindings";
-import type { ProcessInfo, PermissionStatus, AudioData } from "./types";
+import type {AudioData, PermissionStatus, ProcessInfo} from "./types";
+import {EventEmitter} from "events";
 
 /**
  * 原生插件接口
@@ -7,12 +8,16 @@ import type { ProcessInfo, PermissionStatus, AudioData } from "./types";
 interface AudioCaptureAddon {
   /** 检查音频捕获权限状态 */
   checkPermission(): PermissionStatus;
+
   /** 请求音频捕获权限 */
   requestPermission(callback: (result: PermissionStatus) => void): void;
+
   /** 获取可捕获音频的进程列表 */
   getProcessList(): ProcessInfo[];
+
   /** 开始捕获指定进程的音频 */
   startCapture(pid: number, callback: (audioData: AudioData) => void): boolean;
+
   /** 停止捕获 */
   stopCapture(): boolean;
 }
@@ -27,9 +32,33 @@ interface NativeModule {
 const native: NativeModule = bindings("audio_capture");
 
 /**
+ * 音频捕获事件映射
+ */
+export interface AudioCaptureEvents {
+  /** 是否正在捕获音频状态变化 */
+  capturing: [capturing: boolean];
+
+  /** 音频数据 */
+  "audio-data": [audioData: AudioData];
+}
+
+/**
  * 音频捕获类
  */
-class AudioCaptureStub {
+class AudioCaptureStub extends EventEmitter<AudioCaptureEvents> {
+  constructor() {
+    super();
+  }
+
+  /** 是否正在捕获音频 */
+  public get isCapturing(): boolean {
+    return false;
+  }
+
+  private set isCapturing(_value: boolean) {
+    // do nothing
+  }
+
   /** 当前平台是否支持音频捕获 */
   isPlatformSupported(): boolean {
     return false;
@@ -53,7 +82,7 @@ class AudioCaptureStub {
   /** 开始捕获指定进程的音频 */
   startCapture(
     _pid: number,
-    _callback: (audioData: AudioData) => void
+    _callback?: (audioData: AudioData) => void
   ): boolean {
     return false;
   }
@@ -76,6 +105,18 @@ export class AudioCapture extends AudioCaptureStub {
     // 创建C++类的实例
     this.addon = new native.AudioCaptureAddon();
     this._capturing = false;
+  }
+
+  public get isCapturing(): boolean {
+    return this._capturing;
+  }
+
+  private set isCapturing(value: boolean) {
+    if (value === this._capturing) {
+      return;
+    }
+    this._capturing = value;
+    this.emit("capturing", value);
   }
 
   isPlatformSupported(): boolean {
@@ -104,21 +145,27 @@ export class AudioCapture extends AudioCaptureStub {
     return this.addon.getProcessList();
   }
 
-  startCapture(pid: number, callback: (audioData: AudioData) => void): boolean {
+  startCapture(
+    pid: number,
+    callback?: (audioData: AudioData) => void
+  ): boolean {
     // 检查权限
     const permission = this.checkPermission();
     if (permission.status !== "authorized") {
       throw new Error("没有音频捕获权限");
     }
 
-    if (this._capturing) {
+    if (this.isCapturing) {
       throw new Error("已经在捕获音频，请先停止");
     }
 
     try {
-      const result = this.addon.startCapture(pid, callback);
+      const result = this.addon.startCapture(pid, (audioData) => {
+        callback?.(audioData);
+        this.emit("audio-data", audioData);
+      });
       if (result) {
-        this._capturing = true;
+        this.isCapturing = true;
       }
 
       return result;
@@ -128,13 +175,13 @@ export class AudioCapture extends AudioCaptureStub {
   }
 
   stopCapture(): boolean {
-    if (!this._capturing) {
+    if (!this.isCapturing) {
       return false;
     }
 
     const result = this.addon.stopCapture();
     if (result) {
-      this._capturing = false;
+      this.isCapturing = false;
     }
 
     return result;
