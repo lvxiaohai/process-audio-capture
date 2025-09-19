@@ -15,6 +15,9 @@
       "defines": [
         "NODE_ADDON_API_CPP_EXCEPTIONS"
       ],
+      "variables": {
+        "openssl_fips": 0
+      },
       "cflags!": ["-fno-exceptions"],
       "cflags_cc!": ["-fno-exceptions"],
       "conditions": [
