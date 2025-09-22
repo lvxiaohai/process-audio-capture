@@ -33,7 +33,7 @@
     "build:native": "node-gyp rebuild",
     "build:ts": "vite build",
     "watch": "vite build --watch",
-    "install": "npm run build",
+    "install": "node-gyp rebuild",
     "prepublishOnly": "npm run clean:ts && npm run build:ts"
   },
   "license": "MIT",
