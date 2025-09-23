@@ -1,6 +1,6 @@
 {
   "name": "process-audio-capture",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "Native process-level audio capture for Node.js and Electron applications",
   "keywords": [
     "electron",
