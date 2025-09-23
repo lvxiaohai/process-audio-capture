@@ -1,5 +1,9 @@
 import { contextBridge, ipcRenderer } from "electron";
-import type { AudioData, ProcessAudioCaptureApi } from "./types";
+import type {
+  ProcessAudioCaptureApi,
+  Unsubscribe,
+  AudioCaptureEvents,
+} from "./types";
 import { AUDIO_CAPTURE_IPC_PREFIX } from "./shared";
 
 const PREFIX = AUDIO_CAPTURE_IPC_PREFIX;
@@ -20,29 +24,25 @@ export const processAudioCapture: ProcessAudioCaptureApi = {
   startCapture: (pid) => ipcRendererInvoke(`${PREFIX}:start-capture`, pid),
   stopCapture: () => ipcRendererInvoke(`${PREFIX}:stop-capture`),
   isCapturing: () => ipcRendererInvoke(`${PREFIX}:is-capturing`),
-  onCapturing: (callback) => {
+  on: <K extends keyof AudioCaptureEvents>(
+    eventName: K,
+    callback: (...args: AudioCaptureEvents[K]) => void
+  ): Unsubscribe => {
     const id = uuid();
-    const listener = (_event: Electron.IpcRendererEvent, data: boolean) =>
-      callback(data);
-    ipcRenderer.send(`${PREFIX}:on-capturing`, id);
-    ipcRenderer.on(`${PREFIX}:on-capturing:${id}`, listener);
+    const listener = (
+      _event: Electron.IpcRendererEvent,
+      ...args: AudioCaptureEvents[K]
+    ) => callback(...args);
+    ipcRenderer.send(`${PREFIX}:on-${eventName}`, id);
+    ipcRenderer.on(`${PREFIX}:on-${eventName}:${id}`, listener);
 
     return () => {
-      ipcRenderer.off(`${PREFIX}:on-capturing:${id}`, listener);
-      ipcRenderer.send(`${PREFIX}:off-capturing`, id);
+      ipcRenderer.off(`${PREFIX}:on-${eventName}:${id}`, listener);
+      ipcRenderer.send(`${PREFIX}:off-${eventName}`, id);
     };
   },
-  onAudioData: (callback) => {
-    const id = uuid();
-    const listener = (_event: Electron.IpcRendererEvent, data: AudioData) =>
-      callback(data);
-    ipcRenderer.send(`${PREFIX}:on-audio-data`, id);
-    ipcRenderer.on(`${PREFIX}:on-audio-data:${id}`, listener);
-
-    return () => {
-      ipcRenderer.off(`${PREFIX}:on-audio-data:${id}`, listener);
-      ipcRenderer.send(`${PREFIX}:off-audio-data`, id);
-    };
+  off: <K extends keyof AudioCaptureEvents>(eventName?: K) => {
+    ipcRenderer.send(`${PREFIX}:off-all`, eventName);
   },
 };
 

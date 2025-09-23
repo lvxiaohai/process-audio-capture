@@ -145,7 +145,7 @@ function stopRecording(): void {
 // 文档加载完成后执行
 document.addEventListener('DOMContentLoaded', () => {
   // 设置音频数据监听器（只设置一次）
-  const unsubscribe = window.processAudioCapture.onAudioData((data: AudioData) => {
+  const unsubscribe = window.processAudioCapture.on('audio-data', (data: AudioData) => {
     // 只有在捕获状态下才处理音频数据
     if (!appState.isCapturing) return
 
@@ -461,10 +461,12 @@ document.addEventListener('DOMContentLoaded', () => {
   })
 })
 
-const unsubscribe = window.processAudioCapture.onCapturing((capturing) => {
-  console.log('capturing', capturing)
-})
-window.addEventListener('beforeunload', () => {
-  //
-  unsubscribe()
+document.addEventListener('DOMContentLoaded', () => {
+  const unsubscribe = window.processAudioCapture.on('capturing', (capturing) => {
+    console.log('capturing', capturing)
+  })
+  window.addEventListener('beforeunload', () => {
+    // 不使用时取消订阅
+    unsubscribe()
+  })
 })

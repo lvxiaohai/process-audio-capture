@@ -73,21 +73,28 @@ export const setupAudioCaptureIpc = () => {
 };
 
 const listenAudioData = () => {
+  const eventName = "audio-data";
   const listeners = new Map<string, (audioData: AudioData) => void>();
 
-  ipcMain.on(`${PREFIX}:on-audio-data`, (event, id) => {
+  ipcMain.on(`${PREFIX}:on-${eventName}`, (event, id) => {
     listeners.set(id, (audioData) => {
       if (!event.sender.isDestroyed()) {
-        event.sender.send(`${PREFIX}:on-audio-data:${id}`, audioData);
+        event.sender.send(`${PREFIX}:on-${eventName}:${id}`, audioData);
       }
     });
   });
 
-  ipcMain.on(`${PREFIX}:off-audio-data`, (_event, id) => {
+  ipcMain.on(`${PREFIX}:off-${eventName}`, (_event, id) => {
     listeners.delete(id);
   });
 
-  audioCapture.on("audio-data", (audioData) => {
+  ipcMain.on(`${PREFIX}:off-all`, (_event, name) => {
+    if (name === eventName || !name) {
+      listeners.clear();
+    }
+  });
+
+  audioCapture.on(eventName, (audioData) => {
     listeners.forEach((listener) => {
       listener(audioData);
     });
@@ -95,21 +102,28 @@ const listenAudioData = () => {
 };
 
 const listenCapturing = () => {
+  const eventName = "capturing";
   const listeners = new Map<string, (capturing: boolean) => void>();
 
-  ipcMain.on(`${PREFIX}:on-capturing`, (event, id) => {
+  ipcMain.on(`${PREFIX}:on-${eventName}`, (event, id) => {
     listeners.set(id, (capturing) => {
       if (!event.sender.isDestroyed()) {
-        event.sender.send(`${PREFIX}:on-capturing:${id}`, capturing);
+        event.sender.send(`${PREFIX}:on-${eventName}:${id}`, capturing);
       }
     });
   });
 
-  ipcMain.on(`${PREFIX}:off-capturing`, (_event, id) => {
+  ipcMain.on(`${PREFIX}:off-${eventName}`, (_event, id) => {
     listeners.delete(id);
   });
 
-  audioCapture.on("capturing", (capturing) => {
+  ipcMain.on(`${PREFIX}:off-all`, (_event, name) => {
+    if (name === eventName || !name) {
+      listeners.clear();
+    }
+  });
+
+  audioCapture.on(eventName, (capturing) => {
     listeners.forEach((listener) => {
       listener(capturing);
     });

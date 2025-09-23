@@ -45,6 +45,17 @@ export interface PermissionStatus {
 export type Unsubscribe = () => void;
 
 /**
+ * 音频捕获事件映射
+ */
+export interface AudioCaptureEvents {
+  /** 是否正在捕获音频状态变化 */
+  capturing: [capturing: boolean];
+
+  /** 音频数据 */
+  "audio-data": [audioData: AudioData];
+}
+
+/**
  * 定义暴露给渲染进程的API接口
  */
 export interface ProcessAudioCaptureApi {
@@ -66,11 +77,24 @@ export interface ProcessAudioCaptureApi {
   /** 检查是否正在捕获音频 */
   isCapturing: () => Promise<boolean>;
 
-  /** 监听音频数据 */
-  onAudioData: (callback: (data: AudioData) => void) => Unsubscribe;
+  /**
+   * 监听事件 返回取消订阅函数
+   *
+   * @param eventName 事件名
+   * @param callback 事件回调函数
+   * @returns 取消此次订阅的函数
+   */
+  on: <K extends keyof AudioCaptureEvents>(
+    eventName: K,
+    callback: (...args: AudioCaptureEvents[K]) => void
+  ) => Unsubscribe;
 
-  /** 监听是否正在捕获音频 */
-  onCapturing: (callback: (capturing: boolean) => void) => Unsubscribe;
+  /**
+   * 取消监听
+   *
+   * @param eventName 事件名 (不为空时取消该事件名的所有监听, 为空时取消所有事件的监听)
+   */
+  off: <K extends keyof AudioCaptureEvents>(eventName?: K) => void;
 }
 
 declare global {
