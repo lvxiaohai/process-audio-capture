@@ -1,6 +1,12 @@
 import bindings from "bindings";
-import type {AudioData, PermissionStatus, ProcessInfo} from "./types";
-import {EventEmitter} from "events";
+import type {
+  AudioData,
+  PermissionStatus,
+  ProcessInfo,
+  AudioCaptureEvents,
+} from "./types";
+import { EventEmitter } from "events";
+import * as os from "os";
 
 /**
  * 原生插件接口
@@ -22,6 +28,11 @@ interface AudioCaptureAddon {
   stopCapture(): boolean;
 }
 
+interface OsVersion {
+  majorVersion: number;
+  minorVersion: number;
+}
+
 interface NativeModule {
   AudioCaptureAddon: {
     new (): AudioCaptureAddon;
@@ -30,17 +41,6 @@ interface NativeModule {
 
 // 加载原生插件
 const native: NativeModule = bindings("audio_capture");
-
-/**
- * 音频捕获事件映射
- */
-export interface AudioCaptureEvents {
-  /** 是否正在捕获音频状态变化 */
-  capturing: [capturing: boolean];
-
-  /** 音频数据 */
-  "audio-data": [audioData: AudioData];
-}
 
 /**
  * 音频捕获类
@@ -59,7 +59,14 @@ class AudioCaptureStub extends EventEmitter<AudioCaptureEvents> {
     // do nothing
   }
 
-  /** 当前平台是否支持音频捕获 */
+  /**
+   * 当前平台是否支持音频捕获
+   *
+   * 仅支持
+   * - macOS 14.4+
+   * - Windows 10+
+   * - Linux 不支持
+   */
   isPlatformSupported(): boolean {
     return false;
   }
@@ -120,11 +127,26 @@ export class AudioCapture extends AudioCaptureStub {
   }
 
   isPlatformSupported(): boolean {
-    return true;
-  }
+    const platform = os.platform();
+    const { majorVersion, minorVersion } = this.getOsVersion();
 
-  checkPermission(): PermissionStatus {
-    return this.addon.checkPermission();
+    // macOS 支持检查
+    if (platform === "darwin") {
+      // macOS版本映射：Darwin 23.4.0 = macOS 14.4.0
+      // Darwin主版本号 = macOS主版本号 + 9 (从macOS 10开始)
+      // 要求macOS 14.4+ (Darwin 23.4+)
+      return majorVersion >= 24 || (majorVersion === 23 && minorVersion >= 4);
+    }
+
+    // Windows 支持检查
+    if (platform === "win32") {
+      // Windows 10的内核版本是10.0.x
+      // 要求Windows 10+ (内核版本10.0+)
+      return majorVersion >= 10;
+    }
+
+    // 其他平台不支持
+    return false;
   }
 
   requestPermission(): Promise<PermissionStatus> {
@@ -185,6 +207,18 @@ export class AudioCapture extends AudioCaptureStub {
     }
 
     return result;
+  }
+
+  private getOsVersion(): OsVersion {
+    try {
+      const osRelease = os.release();
+      const version = osRelease.split(".");
+      const majorVersion = parseInt(version[0], 10) || 0;
+      const minorVersion = parseInt(version[1], 10) || 0;
+      return { majorVersion, minorVersion };
+    } catch (error) {
+      return { majorVersion: 0, minorVersion: 0 };
+    }
   }
 }
 
