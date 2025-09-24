@@ -10,6 +10,7 @@
 #include <CoreFoundation/CoreFoundation.h>
 #include <dispatch/dispatch.h>
 #include <libproc.h>
+#include <stdexcept>
 #include <string>
 #include <sys/param.h>
 #include <vector>
@@ -60,13 +61,27 @@ static OSStatus AudioIOProcFunc(AudioDeviceID inDevice,
     return noErr;
   }
 
-  // 计算总数据大小
+  // 检查输入数据有效性
+  if (!inInputData || inInputData->mNumberBuffers == 0) {
+    return noErr;
+  }
+
+  // 计算总数据大小并验证每个缓冲区
   size_t totalBytes = 0;
   for (UInt32 i = 0; i < inInputData->mNumberBuffers; ++i) {
+    // 检查缓冲区指针有效性
+    if (!inInputData->mBuffers[i].mData) {
+      return noErr;
+    }
+    // 检查数据大小合理性
+    if (inInputData->mBuffers[i].mDataByteSize >
+        16 * 1024 * 1024) { // 限制单个缓冲区最大16MB
+      return noErr;
+    }
     totalBytes += inInputData->mBuffers[i].mDataByteSize;
   }
 
-  if (totalBytes == 0) {
+  if (totalBytes == 0 || totalBytes > 64 * 1024 * 1024) { // 限制总数据大小64MB
     return noErr;
   }
 
@@ -128,8 +143,17 @@ static OSStatus AudioIOProcFunc(AudioDeviceID inDevice,
     }
   }
 
-  // 调用回调函数
-  data->callback(buffer, bufferSize, channels, sampleRate);
+  // 创建数据副本并调用回调函数，确保数据生命周期安全
+  if (buffer && bufferSize > 0 && bufferSize <= 64 * 1024 * 1024) {
+    try {
+      std::vector<uint8_t> bufferCopy(buffer, buffer + bufferSize);
+      data->callback(bufferCopy.data(), bufferSize, channels, sampleRate);
+    } catch (const std::exception &e) {
+      // 内存分配失败，跳过这帧数据
+    } catch (...) {
+      // 其他异常，跳过这帧数据
+    }
+  }
 
   // 清理临时缓冲区（仅在非交错格式时需要清理，因为我们分配了新内存）
   if (!pcmBuffer.format.isInterleaved) {

@@ -1,9 +1,11 @@
 #include "../include/audio_capture.h"
 #include "../include/permission_manager.h"
 #include "../include/process_manager.h"
+#include <cstring>
 #include <memory>
 #include <napi.h>
 #include <set>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -210,39 +212,70 @@ private:
         });
 
     // 设置C++回调函数，将PCM数据传递给JavaScript
-    bool result = g_audio_capture->StartCapture(
-        pid,
-        [](const uint8_t *data, size_t length, int channels, int sampleRate) {
-          // 在新线程中调用JavaScript回调
-          auto callback = [data, length, channels, sampleRate](
-                              Napi::Env env, Napi::Function jsCallback) {
-            try {
-              // 创建ArrayBuffer来存储PCM数据
-              Napi::ArrayBuffer buffer = Napi::ArrayBuffer::New(env, length);
-              memcpy(buffer.Data(), data, length);
+    bool result = g_audio_capture->StartCapture(pid, [](const uint8_t *data,
+                                                        size_t length,
+                                                        int channels,
+                                                        int sampleRate) {
+      // 数据有效性检查
+      if (!data || length == 0 || length > 16 * 1024 * 1024) { // 限制最大16MB
+        return;
+      }
 
-              // 创建返回对象
-              Napi::Object result = Napi::Object::New(env);
-              size_t sampleCount = length / sizeof(float);
-              result.Set("buffer",
-                         Napi::Float32Array::New(env, sampleCount, buffer, 0));
-              result.Set("channels", Napi::Number::New(env, channels));
-              result.Set("sampleRate", Napi::Number::New(env, sampleRate));
+      // 参数合理性检查
+      if (channels <= 0 || channels > 32 || sampleRate <= 0 ||
+          sampleRate > 192000) {
+        return;
+      }
 
-              // 调用JavaScript回调，添加错误处理
-              jsCallback.Call({result});
-            } catch (const Napi::Error &e) {
-              // 捕获N-API异常，避免崩溃
-              // 在开发环境可以输出错误信息
-            } catch (const std::exception &e) {
-              // 捕获其他C++异常
-            } catch (...) {
-              // 捕获所有其他异常
-            }
-          };
+      // 创建数据副本，避免悬空指针问题
+      std::vector<uint8_t> dataCopy;
+      try {
+        dataCopy.assign(data, data + length);
+      } catch (const std::exception &e) {
+        // 内存分配失败，跳过这帧数据
+        return;
+      }
 
-          g_ts_callback.BlockingCall(callback);
-        });
+      // 在新线程中调用JavaScript回调
+      auto callback = [dataCopy = std::move(dataCopy), length, channels,
+                       sampleRate](Napi::Env env, Napi::Function jsCallback) {
+        try {
+          // 再次验证数据长度
+          if (dataCopy.size() != length || length == 0) {
+            return;
+          }
+
+          // 创建ArrayBuffer来存储PCM数据
+          Napi::ArrayBuffer buffer = Napi::ArrayBuffer::New(env, length);
+          if (!buffer.Data()) {
+            return; // ArrayBuffer创建失败
+          }
+
+          // 安全的内存拷贝
+          std::memcpy(buffer.Data(), dataCopy.data(), length);
+
+          // 创建返回对象
+          Napi::Object result = Napi::Object::New(env);
+          size_t sampleCount = length / sizeof(float);
+          result.Set("buffer",
+                     Napi::Float32Array::New(env, sampleCount, buffer, 0));
+          result.Set("channels", Napi::Number::New(env, channels));
+          result.Set("sampleRate", Napi::Number::New(env, sampleRate));
+
+          // 调用JavaScript回调，添加错误处理
+          jsCallback.Call({result});
+        } catch (const Napi::Error &e) {
+          // 捕获N-API异常，避免崩溃
+          // 在开发环境可以输出错误信息
+        } catch (const std::exception &e) {
+          // 捕获其他C++异常
+        } catch (...) {
+          // 捕获所有其他异常
+        }
+      };
+
+      g_ts_callback.BlockingCall(callback);
+    });
 
     return Napi::Boolean::New(env, result);
   }
