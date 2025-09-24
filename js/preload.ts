@@ -18,6 +18,8 @@ const PREFIX = AUDIO_CAPTURE_IPC_PREFIX;
  * 配合 main.ts 中的 setupAudioCaptureIpc() 使用
  */
 export const processAudioCapture: ProcessAudioCaptureApi = {
+  isPlatformSupported: () =>
+    ipcRendererInvoke(`${PREFIX}:is-platform-supported`),
   checkPermission: () => ipcRendererInvoke(`${PREFIX}:check-permission`),
   requestPermission: () => ipcRendererInvoke(`${PREFIX}:request-permission`),
   getProcessList: () => ipcRendererInvoke(`${PREFIX}:get-process-list`),

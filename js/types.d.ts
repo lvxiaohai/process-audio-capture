@@ -59,6 +59,9 @@ export interface AudioCaptureEvents {
  * 定义暴露给渲染进程的API接口
  */
 export interface ProcessAudioCaptureApi {
+  /** 是否支持音频捕获 */
+  isPlatformSupported: () => Promise<boolean>;
+
   /** 检查音频捕获权限 */
   checkPermission: () => Promise<PermissionStatus>;
 

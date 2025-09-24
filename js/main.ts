@@ -19,6 +19,14 @@ export const setupAudioCaptureIpc = () => {
   }
   registered = true;
 
+  ipcMain.handle(`${PREFIX}:is-platform-supported`, () => {
+    try {
+      return audioCapture.isPlatformSupported();
+    } catch (error: any) {
+      return error;
+    }
+  });
+
   ipcMain.handle(`${PREFIX}:check-permission`, () => {
     try {
       return audioCapture.checkPermission();
