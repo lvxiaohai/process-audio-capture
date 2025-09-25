@@ -1,7 +1,7 @@
 {
   "targets": [
     {
-      "target_name": "audio_capture",
+      "target_name": "process-audio-capture",
       "sources": [
         "src/audio_capture_addon.cc",
       ],
@@ -41,7 +41,6 @@
               "-framework AudioToolbox",
               "-framework AppKit",
               "-framework Foundation",
-              "-framework AVFoundation",
               "-framework CoreFoundation"
             ]
           }

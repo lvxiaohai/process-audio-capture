@@ -1,6 +1,27 @@
 import { defineConfig } from "vite";
 import { resolve } from "path";
 import dts from "vite-plugin-dts";
+import { readFileSync } from "fs";
+import { builtinModules } from "module";
+
+// 读取package.json获取依赖列表
+const pkg = JSON.parse(
+  readFileSync(resolve(__dirname, "package.json"), "utf-8")
+);
+
+// 自动生成external列表
+const external = [
+  // Node.js内置模块
+  ...builtinModules,
+  // Node.js内置模块的node:前缀版本
+  ...builtinModules.map((m) => `node:${m}`),
+  // 生产依赖
+  ...Object.keys(pkg.dependencies || {}),
+  // 开发依赖（如electron等）
+  ...Object.keys(pkg.devDependencies || {}),
+  // peerDependencies（如果有的话）
+  ...Object.keys(pkg.peerDependencies || {}),
+];
 
 export default defineConfig({
   build: {
@@ -13,7 +34,7 @@ export default defineConfig({
     },
     outDir: "dist",
     rollupOptions: {
-      external: ["bindings", "electron", "node-addon-api", "events", "os"],
+      external,
       output: [
         {
           format: "cjs",

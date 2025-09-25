@@ -3,6 +3,7 @@
 #ifdef __APPLE__
 
 #include "../permission_manager.h"
+#include <os/log.h>
 
 /**
  * @file mac_permission_manager.h
@@ -20,8 +21,7 @@ namespace permission_manager {
  * @brief macOS平台的音频录制权限管理类
  *
  * 该类提供了检查和请求macOS系统音频录制权限的功能。
- * 它使用TCC
- * SPI来实现更精确的权限管理，同时提供标准AVFoundation权限API作为备选。
+ * 它使用TCC SPI来实现精确的权限管理。
  */
 class MacPermissionManager : public PermissionManager {
 public:
@@ -59,17 +59,11 @@ private:
   // 权限回调函数
   PermissionCallback permission_callback_;
 
-  // 是否启用TCC SPI
-  bool enable_tcc_spi_;
-
-  // 使用AVFoundation API检查权限
-  PermissionStatus CheckPermissionAVFoundation();
+  // 日志记录器 - 参考Swift版本使用成员变量
+  os_log_t logger_;
 
   // 使用TCC SPI检查权限
   PermissionStatus CheckPermissionTCC();
-
-  // 使用AVFoundation API请求权限
-  void RequestPermissionAVFoundation(PermissionCallback callback);
 
   // 使用TCC SPI请求权限
   void RequestPermissionTCC(PermissionCallback callback);

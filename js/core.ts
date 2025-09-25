@@ -1,12 +1,13 @@
 import bindings from "bindings";
 import type {
+  AudioCaptureEvents,
   AudioData,
   PermissionStatus,
   ProcessInfo,
-  AudioCaptureEvents,
 } from "./types";
 import { EventEmitter } from "events";
 import * as os from "os";
+import path from "path";
 
 /**
  * 原生插件接口
@@ -39,8 +40,56 @@ interface NativeModule {
   };
 }
 
-// 加载原生插件
-const native: NativeModule = bindings("audio_capture");
+const native: NativeModule = (() => {
+  let native: NativeModule;
+
+  // 项目名称
+  const projectName = "process-audio-capture";
+  // 绑定名称 与 binding.gyp 中的 target_name 一致
+  const bindingsName = "process-audio-capture";
+  const options: bindings.Options = {
+    bindings: bindingsName,
+  };
+
+  try {
+    // 加载原生插件
+    native = bindings({ ...options });
+  } catch (error) {
+    // electron asar打包时 会走到这里
+    const root = bindings.getRoot(bindings.getFileName());
+    const moduleRoot = path.join(root, "/", "node_modules", "/", projectName);
+
+    native = bindings({
+      ...options,
+      module_root: moduleRoot,
+      try: [
+        // node-gyp's linked version in the "build" dir
+        ["module_root", "build", "bindings"],
+        // node-waf and gyp_addon (a.k.a node-gyp)
+        ["module_root", "build", "Debug", "bindings"],
+        ["module_root", "build", "Release", "bindings"],
+        // Debug files, for development (legacy behavior, remove for node v0.9)
+        ["module_root", "out", "Debug", "bindings"],
+        ["module_root", "Debug", "bindings"],
+        // Release files, but manually compiled (legacy behavior, remove for node v0.9)
+        ["module_root", "out", "Release", "bindings"],
+        ["module_root", "Release", "bindings"],
+        // Legacy from node-waf, node <= 0.4.x
+        ["module_root", "build", "default", "bindings"],
+        // Production "Release" buildtype binary (meh...)
+        ["module_root", "compiled", "version", "platform", "arch", "bindings"],
+        // node-qbs builds
+        ["module_root", "addon-build", "release", "install-root", "bindings"],
+        ["module_root", "addon-build", "debug", "install-root", "bindings"],
+        ["module_root", "addon-build", "default", "install-root", "bindings"],
+        // node-pre-gyp path ./lib/binding/{node_abi}-{platform}-{arch}
+        ["module_root", "lib", "binding", "nodePreGyp", "bindings"],
+      ],
+    });
+  }
+
+  return native;
+})();
 
 /**
  * 音频捕获类
@@ -147,6 +196,10 @@ export class AudioCapture extends AudioCaptureStub {
 
     // 其他平台不支持
     return false;
+  }
+
+  checkPermission(): PermissionStatus {
+    return this.addon.checkPermission();
   }
 
   requestPermission(): Promise<PermissionStatus> {
