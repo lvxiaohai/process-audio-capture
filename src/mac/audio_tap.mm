@@ -33,7 +33,8 @@ bool isValid(AudioObjectID objectID) { return objectID != kAudioObjectUnknown; }
 struct AudioCallbackData {
   AudioDataCallback callback;
   bool active;
-  void *format; // AVAudioFormat对象指针
+  void *format;                    // AVAudioFormat对象指针
+  AudioObjectID aggregateDeviceID; // 聚合设备ID
 };
 
 // 音频IO回调函数
@@ -94,6 +95,21 @@ static OSStatus AudioIOProcFunc(AudioDeviceID inDevice,
   // 获取音频参数
   UInt32 channels = format.channelCount;
   int sampleRate = format.sampleRate;
+
+  // 查询聚合设备的实际采样率（更准确）
+  if (data->aggregateDeviceID != kAudioObjectUnknown) {
+    Float64 actualRate = 0;
+    AudioObjectPropertyAddress actualRateAddr = {
+        kAudioDevicePropertyActualSampleRate, kAudioObjectPropertyScopeGlobal,
+        kAudioObjectPropertyElementMain};
+    UInt32 size = sizeof(actualRate);
+    OSStatus err =
+        AudioObjectGetPropertyData(data->aggregateDeviceID, &actualRateAddr, 0,
+                                   nullptr, &size, &actualRate);
+    if (err == noErr && actualRate > 0) {
+      sampleRate = static_cast<int>(actualRate);
+    }
+  }
 
   // 重新计算帧数：如果是非交错数据，每个缓冲区包含一个声道的所有帧
   UInt32 frameCount;
@@ -356,6 +372,7 @@ bool ProcessTap::Start(AudioDataCallback callback) {
   callbackData->callback = callback;
   callbackData->active = true;
   callbackData->format = audio_format_; // 传递格式对象给回调
+  callbackData->aggregateDeviceID = aggregate_device_id_;
 
   callback_ = callback;
   callback_data_ = callbackData;
