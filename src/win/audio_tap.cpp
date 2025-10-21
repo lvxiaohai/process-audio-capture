@@ -8,6 +8,7 @@
 #include <mfidl.h>
 #include <mfreadwrite.h>
 #include <thread>
+#include <tlhelp32.h>
 #include <wrl/implements.h>
 
 #pragma comment(lib, "mfplat.lib")
@@ -160,30 +161,102 @@ void AudioTap::SetError(const std::string &message) {
              << std::wstring(message.begin(), message.end()) << std::endl;
 }
 
+bool AudioTap::CheckTargetProcessExists() {
+  /**
+   * 检查目标进程是否存在的多层级验证策略
+   * 
+   * 为了最大化成功率，使用两种互补的检查方法：
+   * 1. 直接进程访问：尝试不同权限级别打开进程
+   * 2. 进程快照遍历：当直接访问失败时的备用方案
+   */
+  
+  // 定义权限级别数组，按从低到高的顺序排列
+  // 这样可以优先使用最小权限，减少被系统拒绝的可能性
+  static const DWORD access_levels[] = {
+    PROCESS_QUERY_LIMITED_INFORMATION,  // 最小权限，适用于大多数场景
+    PROCESS_QUERY_INFORMATION,          // 标准查询权限
+    PROCESS_QUERY_INFORMATION | PROCESS_VM_READ  // 包含内存访问权限
+  };
+  
+  // 方案1: 渐进式权限检查
+  // 从最小权限开始，逐步尝试更高权限级别
+  for (DWORD access : access_levels) {
+    HANDLE process_handle = OpenProcess(access, FALSE, target_pid_);
+    if (process_handle) {
+      CloseHandle(process_handle);
+      return true;  // 成功打开进程，说明进程存在且可访问
+    }
+  }
+  
+  // 方案2: 进程快照备用检查
+  // 当所有直接访问方式都失败时，使用系统快照进行验证
+  HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+  if (snapshot == INVALID_HANDLE_VALUE) {
+    return false;  // 无法创建快照，可能是系统权限问题
+  }
+  
+  // 使用局部RAII类管理快照句柄，确保资源正确释放
+  struct SnapshotGuard {
+    HANDLE handle;
+    explicit SnapshotGuard(HANDLE h) : handle(h) {}
+    ~SnapshotGuard() { 
+      if (handle != INVALID_HANDLE_VALUE) {
+        CloseHandle(handle); 
+      }
+    }
+  } guard(snapshot);
+  
+  // 遍历系统中的所有进程，查找目标进程ID
+  PROCESSENTRY32 pe32;
+  pe32.dwSize = sizeof(PROCESSENTRY32);
+  
+  if (Process32First(snapshot, &pe32)) {
+    do {
+      if (pe32.th32ProcessID == target_pid_) {
+        return true;  // 在系统快照中找到目标进程
+      }
+    } while (Process32Next(snapshot, &pe32));
+  }
+  
+  return false;  // 所有检查方法都失败，进程可能不存在
+}
+
 bool AudioTap::ActivateProcessLoopbackAudioClient() {
-  // 检查目标进程是否存在
-  HANDLE process_handle =
-      OpenProcess(PROCESS_QUERY_INFORMATION, FALSE, target_pid_);
-  if (!process_handle) {
+  /**
+   * 激活进程级音频回环捕获客户端
+   * 
+   * 这是音频捕获的核心初始化过程，包括：
+   * 1. 验证目标进程的存在性和可访问性
+   * 2. 配置进程级音频回环参数
+   * 3. 异步激活音频接口
+   * 4. 等待激活完成
+   */
+  
+  // 步骤1: 验证目标进程
+  // 使用多层级检查策略确保目标进程存在且可访问
+  if (!CheckTargetProcessExists()) {
     SetError("Target process does not exist or cannot be accessed");
     return false;
   }
-  CloseHandle(process_handle);
 
-  // 设置进程级loopback参数
+  // 步骤2: 配置进程级音频回环参数
+  // 设置音频捕获的目标进程和捕获模式
   AUDIOCLIENT_ACTIVATION_PARAMS activation_params = {};
-  activation_params.ActivationType =
-      AUDIOCLIENT_ACTIVATION_TYPE_PROCESS_LOOPBACK;
+  activation_params.ActivationType = AUDIOCLIENT_ACTIVATION_TYPE_PROCESS_LOOPBACK;
+  
+  // 配置为包含目标进程树模式，这样可以捕获主进程及其子进程的音频
   activation_params.ProcessLoopbackParams.ProcessLoopbackMode =
       PROCESS_LOOPBACK_MODE_INCLUDE_TARGET_PROCESS_TREE;
   activation_params.ProcessLoopbackParams.TargetProcessId = target_pid_;
 
+  // 将参数封装为PROPVARIANT格式，供Windows音频系统使用
   PROPVARIANT activate_params = {};
   activate_params.vt = VT_BLOB;
   activate_params.blob.cbSize = sizeof(activation_params);
   activate_params.blob.pBlobData = reinterpret_cast<BYTE *>(&activation_params);
 
-  // 异步激活音频接口
+  // 步骤3: 异步激活音频接口
+  // 使用异步方式激活音频客户端，避免阻塞当前线程
   ComPtr<IActivateAudioInterfaceAsyncOperation> async_op;
   HRESULT hr = ActivateAudioInterfaceAsync(
       VIRTUAL_AUDIO_DEVICE_PROCESS_LOOPBACK, __uuidof(IAudioClient),
@@ -195,13 +268,15 @@ bool AudioTap::ActivateProcessLoopbackAudioClient() {
     return false;
   }
 
-  // 等待激活完成（10秒超时）
+  // 步骤4: 等待激活完成
+  // 设置合理的超时时间（10秒），防止无限等待
   DWORD wait_result = WaitForSingleObject(activate_completed_event_, 10000);
   if (wait_result != WAIT_OBJECT_0) {
     SetError("Timeout waiting for audio interface activation");
     return false;
   }
 
+  // 返回激活结果，由ActivateCompleted回调函数设置
   return SUCCEEDED(activate_result_);
 }
 

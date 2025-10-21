@@ -88,6 +88,7 @@ private:
   // 内部方法
   void Cleanup();
   void SetError(const std::string &message);
+  bool CheckTargetProcessExists();
   bool ActivateProcessLoopbackAudioClient();
   HRESULT InitializeAudioClientInCallback();
   void CaptureThreadProc();

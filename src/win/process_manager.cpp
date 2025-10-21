@@ -362,14 +362,18 @@ std::vector<ProcessInfo> GetProcessList() {
     for (const auto &session : sessions) {
       uint32_t pid = session.process_id;
 
-      // 跳过无效的进程ID和已处理的进程
+      // 预过滤：跳过无效的进程ID和已处理的进程
+      // 这是最基本的过滤条件，可以快速排除明显无效的情况
       if (pid == 0 || processed_pids.find(pid) != processed_pids.end()) {
         continue;
       }
 
-      // 检查进程是否存在且有权限访问
-      if (!win_utils::IsProcessExists(pid) ||
-          !win_utils::HasProcessAccess(pid)) {
+      // 权限验证：检查是否有足够权限访问目标进程
+      // 注意：这里使用HasProcessAccess而不是IsProcessExists，因为：
+      // 1. HasProcessAccess内部已经包含了进程存在性检查
+      // 2. 我们需要确保有足够权限获取进程详细信息
+      // 3. 避免重复的系统调用，提高性能
+      if (!win_utils::HasProcessAccess(pid)) {
         continue;
       }
 
