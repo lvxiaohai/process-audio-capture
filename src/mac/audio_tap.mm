@@ -254,8 +254,10 @@ bool ProcessTap::Prepare(AudioObjectID objectID) {
       // 获取默认输出设备
       AudioObjectID systemOutputID = kAudioObjectUnknown;
       AudioObjectPropertyAddress outputAddress = {
-          kAudioHardwarePropertyDefaultSystemOutputDevice,
-          kAudioObjectPropertyScopeGlobal, kAudioObjectPropertyElementMain};
+          kAudioHardwarePropertyDefaultOutputDevice,
+          kAudioObjectPropertyScopeGlobal,
+          kAudioObjectPropertyElementMain,
+      };
 
       UInt32 outputDataSize = sizeof(systemOutputID);
       OSStatus outputErr = AudioObjectGetPropertyData(
