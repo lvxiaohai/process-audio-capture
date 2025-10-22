@@ -8,6 +8,7 @@
 #include <shellapi.h>
 #include <shlobj.h>
 #include <tlhelp32.h>
+#include <unordered_map>
 #include <windows.h>
 
 // 链接GDI+库
@@ -484,6 +485,295 @@ bool HasProcessAccess(uint32_t pid) {
   // 注意：这里要求更高的权限级别，包括PROCESS_VM_READ
   HandleGuard process_handle(TryOpenProcessWithMultipleAccess(pid, true));
   return process_handle.valid();
+}
+
+//=============================================================================
+// GetRealApplicationInfo 辅助函数
+// 用于智能识别多进程应用的主进程，类似Windows任务管理器的实现
+//=============================================================================
+
+namespace {
+  /**
+   * @brief 检查两个进程路径是否在同一目录
+   * 
+   * @param path1 第一个进程的完整路径
+   * @param path2 第二个进程的完整路径
+   * @return true 如果在同一目录（不区分大小写）
+   */
+  bool IsSameDirectory(const std::string& path1, const std::string& path2) {
+    if (path1.empty() || path2.empty()) {
+      return false;
+    }
+    
+    size_t pos1 = path1.find_last_of("\\/");
+    size_t pos2 = path2.find_last_of("\\/");
+    
+    if (pos1 == std::string::npos || pos2 == std::string::npos) {
+      return false;
+    }
+    
+    std::string dir1 = path1.substr(0, pos1);
+    std::string dir2 = path2.substr(0, pos2);
+    
+    // Windows路径不区分大小写
+    std::transform(dir1.begin(), dir1.end(), dir1.begin(), ::tolower);
+    std::transform(dir2.begin(), dir2.end(), dir2.begin(), ::tolower);
+    
+    return dir1 == dir2;
+  }
+
+  /**
+   * @brief 检查进程名是否像辅助进程
+   * 
+   * 通过文件名中的关键词判断是否为辅助进程，如：
+   * - KwService.exe (service)
+   * - chrome.exe --type=renderer (renderer)
+   * 
+   * @param exe_name 可执行文件名
+   * @return true 如果是辅助进程
+   */
+  bool IsAuxiliaryProcess(const std::string& exe_name) {
+    std::string lower = exe_name;
+    std::transform(lower.begin(), lower.end(), lower.begin(), ::tolower);
+    
+    // 常见的辅助进程关键词
+    static const char* keywords[] = {
+      "service", "helper", "worker", "renderer", 
+      "gpu", "plugin", "utility", "crashpad"
+    };
+    
+    for (const char* keyword : keywords) {
+      if (lower.find(keyword) != std::string::npos) {
+        return true;
+      }
+    }
+    
+    return false;
+  }
+
+  /**
+   * @brief 一次性枚举所有窗口，建立PID到窗口的映射
+   * 
+   * 性能优化：避免为每个进程重复枚举所有窗口
+   * 只记录可见的顶层窗口（有标题栏的主窗口）
+   * 
+   * @return PID到窗口句柄的映射表
+   */
+  std::unordered_map<uint32_t, HWND> BuildProcessWindowMap() {
+    std::unordered_map<uint32_t, HWND> pid_to_window;
+    
+    struct EnumData {
+      std::unordered_map<uint32_t, HWND>* map;
+    };
+    
+    EnumData data;
+    data.map = &pid_to_window;
+    
+    EnumWindows([](HWND hwnd, LPARAM lParam) -> BOOL {
+      EnumData* data = reinterpret_cast<EnumData*>(lParam);
+      
+      // 只处理可见窗口
+      if (!IsWindowVisible(hwnd)) {
+        return TRUE;
+      }
+      
+      DWORD window_pid = 0;
+      GetWindowThreadProcessId(hwnd, &window_pid);
+      
+      // 只记录顶层窗口（没有父窗口）
+      if (GetWindow(hwnd, GW_OWNER) == NULL) {
+        LONG style = GetWindowLong(hwnd, GWL_STYLE);
+        // 必须有标题栏（主窗口特征）
+        if (style & WS_CAPTION) {
+          // 每个PID只记录第一个找到的主窗口
+          if (data->map->find(window_pid) == data->map->end()) {
+            (*data->map)[window_pid] = hwnd;
+          }
+        }
+      }
+      
+      return TRUE;
+    }, reinterpret_cast<LPARAM>(&data));
+    
+    return pid_to_window;
+  }
+
+  /**
+   * @brief 查找同目录下最适合代表应用的主进程
+   * 
+   * 对于多进程应用（如酷我音乐），通过以下策略找到主进程：
+   * 1. 如果当前进程不是辅助进程，直接返回（快速路径）
+   * 2. 在同目录下查找所有进程，按优先级评分：
+   *    - 有可见窗口: +1000分
+   *    - 非辅助进程: +500分
+   *    - PID越小: 分数越高（先启动的通常是主进程）
+   * 3. 找到第一个有窗口的非辅助进程立即返回（快速路径）
+   * 
+   * @param pid 当前进程ID
+   * @param current_path 当前进程的完整路径
+   * @return 主进程的PID，如果找不到则返回原PID
+   */
+  uint32_t FindMainProcessInDirectory(uint32_t pid, const std::string& current_path) {
+    // 提取文件名
+    size_t pos = current_path.find_last_of("\\/");
+    std::string current_name = (pos != std::string::npos) ? 
+      current_path.substr(pos + 1) : current_path;
+    
+    // 快速路径：如果当前进程不是辅助进程，直接返回
+    if (!IsAuxiliaryProcess(current_name)) {
+      return pid;
+    }
+    
+    // 只有辅助进程才需要查找主进程
+    // 一次性枚举所有窗口，建立映射表（性能优化）
+    auto pid_to_window = BuildProcessWindowMap();
+    
+    // 获取进程快照
+    HandleGuard snapshot(CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0));
+    if (!snapshot.valid()) {
+      return pid;
+    }
+    
+    // 候选进程信息
+    struct Candidate {
+      uint32_t pid;
+      std::string name;
+      bool has_window;
+      bool is_auxiliary;
+      
+      // 计算优先级分数
+      int GetScore() const {
+        int score = 0;
+        if (has_window) score += 1000;      // 有窗口最重要
+        if (!is_auxiliary) score += 500;    // 非辅助进程优先
+        score -= static_cast<int>(pid / 1000); // PID越小越好
+        return score;
+      }
+    };
+    
+    std::vector<Candidate> candidates;
+    
+    PROCESSENTRY32 pe32;
+    pe32.dwSize = sizeof(PROCESSENTRY32);
+    
+    if (Process32First(snapshot.get(), &pe32)) {
+      do {
+        uint32_t candidate_pid = static_cast<uint32_t>(pe32.th32ProcessID);
+        
+        // 跳过自己
+        if (candidate_pid == pid) {
+          continue;
+        }
+        
+        std::string candidate_path = GetProcessPath(candidate_pid);
+        
+        // 只考虑同目录的进程
+        if (IsSameDirectory(current_path, candidate_path)) {
+          Candidate c;
+          c.pid = candidate_pid;
+          
+          // 提取文件名
+          size_t pos = candidate_path.find_last_of("\\/");
+          c.name = (pos != std::string::npos) ? 
+            candidate_path.substr(pos + 1) : candidate_path;
+          
+          // 使用预先建立的映射，避免重复枚举窗口
+          c.has_window = (pid_to_window.find(candidate_pid) != pid_to_window.end());
+          c.is_auxiliary = IsAuxiliaryProcess(c.name);
+          
+          candidates.push_back(c);
+          
+          // 快速路径：找到第一个有窗口的非辅助进程就立即返回
+          if (c.has_window && !c.is_auxiliary) {
+            return candidate_pid;
+          }
+        }
+      } while (Process32Next(snapshot.get(), &pe32));
+    }
+    
+    if (candidates.empty()) {
+      return pid;
+    }
+    
+    // 按分数排序，选择最佳候选
+    std::sort(candidates.begin(), candidates.end(), 
+      [](const Candidate& a, const Candidate& b) {
+        return a.GetScore() > b.GetScore();
+      });
+    
+    return candidates[0].pid;
+  }
+}
+
+uint32_t GetRealApplicationInfo(uint32_t pid, 
+                                 std::string& out_name,
+                                 IconData& out_icon, 
+                                 std::string& out_path) {
+  /**
+   * 获取进程的真实应用信息（类似Windows任务管理器）
+   * 
+   * 处理流程：
+   * 1. 获取当前进程路径
+   * 2. 查找同目录下的主进程（如果当前是辅助进程）
+   * 3. 从主进程获取应用名称和图标
+   * 
+   * 示例：
+   * 输入: KwService.exe (PID: 24004)
+   * 输出: "酷我音乐" + kwmusic.exe的图标 (PID: 17248)
+   */
+  
+  // 步骤1: 获取当前进程路径
+  std::string current_path = GetProcessPath(pid);
+  if (current_path.empty()) {
+    out_name = "Unknown Process";
+    return pid;
+  }
+  
+  // 步骤2: 查找主进程（智能识别多进程应用）
+  uint32_t main_pid = FindMainProcessInDirectory(pid, current_path);
+  std::string main_path = GetProcessPath(main_pid);
+  
+  if (main_path.empty()) {
+    main_path = current_path;
+    main_pid = pid;
+  }
+  
+  out_path = main_path;
+  std::wstring wpath = StringToWString(main_path);
+  
+  // 步骤3: 获取应用名称（优先从PE文件版本信息）
+  // 读取ProductName字段，支持中文优先
+  out_name = GetApplicationDisplayName(main_pid);
+  
+  // 步骤4: 获取应用图标（使用Shell API）
+  SHFILEINFOW file_info = {0};
+  DWORD_PTR result = SHGetFileInfoW(
+    wpath.c_str(),
+    0,
+    &file_info,
+    sizeof(file_info),
+    SHGFI_ICON | SHGFI_LARGEICON
+  );
+  
+  if (result && file_info.hIcon) {
+    out_icon = ConvertIconToPNG(file_info.hIcon);
+    DestroyIcon(file_info.hIcon);
+  }
+  
+  // 步骤5: 后备方案 - 直接从exe提取图标
+  if (out_icon.data.empty()) {
+    out_icon = ExtractIconFromFile(main_path);
+  }
+  
+  // 步骤6: 后备方案 - 使用进程名作为名称
+  if (out_name.empty() || out_name == "Unknown Process") {
+    out_name = GetProcessName(main_pid);
+    if (out_name.empty()) {
+      out_name = "Unknown Process";
+    }
+  }
+  
+  return main_pid;
 }
 
 //=============================================================================

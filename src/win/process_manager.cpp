@@ -382,31 +382,33 @@ std::vector<ProcessInfo> GetProcessList() {
 
       // 4. 安全地获取进程信息
       try {
-        // 获取进程路径
-        process.path = win_utils::GetProcessPath(pid);
-
-        // 获取进程描述
-        process.description = win_utils::GetProcessDescription(pid);
-        if (process.description.empty()) {
-          process.description = "PID: " + std::to_string(pid);
-        }
-
-        // 获取友好的进程名称（优先级：会话显示名 > 应用友好名称）
+        // 使用新的统一接口获取真实应用信息（类似任务管理器的实现）
+        std::string app_name;
+        IconData app_icon;
+        std::string app_path;
+        
+        uint32_t representative_pid = win_utils::GetRealApplicationInfo(
+          pid, app_name, app_icon, app_path);
+        
+        // 设置进程信息
+        process.path = app_path;
+        process.name = app_name;
+        process.icon = app_icon;
+        
+        // 优先使用会话显示名称（如果有的话）
         if (!session.display_name.empty()) {
           process.name = session.display_name;
-        } else {
-          process.name = win_utils::GetApplicationDisplayName(pid);
-          if (process.name.empty()) {
-            process.name = "Unknown Process";
-          }
         }
-
-        // 获取进程图标
-        process.icon = win_utils::GetProcessIcon(pid);
-
+        
         // 如果没有图标，尝试从会话路径获取
         if (process.icon.data.empty() && !session.icon_path.empty()) {
           process.icon = win_utils::ExtractIconFromFile(session.icon_path);
+        }
+        
+        // 获取进程描述（从代表进程获取）
+        process.description = win_utils::GetProcessDescription(representative_pid);
+        if (process.description.empty()) {
+          process.description = "PID: " + std::to_string(pid);
         }
 
         // 设置空图标信息
