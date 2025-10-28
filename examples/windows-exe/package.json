@@ -19,7 +19,7 @@
     "outputPath": "dist"
   },
   "dependencies": {
-    "process-audio-capture": "^1.0.11",
+    "process-audio-capture": "latest",
     "wav": "^1.0.2"
   },
   "devDependencies": {
