@@ -45,6 +45,7 @@ struct AudioSessionInfo {
  * @brief Windows音频会话管理器
  *
  * 负责与Windows音频系统交互，获取当前活跃的音频会话信息
+ * 支持枚举所有音频输出设备上的会话
  */
 class AudioSessionManager {
 public:
@@ -60,36 +61,11 @@ public:
       return true;
     }
 
-    HRESULT hr;
-
-    // 1. 创建设备枚举器
-    hr = CoCreateInstance(__uuidof(MMDeviceEnumerator), NULL, CLSCTX_ALL,
-                          __uuidof(IMMDeviceEnumerator),
-                          (void **)&device_enumerator_);
+    // 创建设备枚举器
+    HRESULT hr = CoCreateInstance(__uuidof(MMDeviceEnumerator), NULL, CLSCTX_ALL,
+                                  __uuidof(IMMDeviceEnumerator),
+                                  (void **)&device_enumerator_);
     if (FAILED(hr)) {
-      return false;
-    }
-
-    // 2. 获取默认音频输出设备
-    hr = device_enumerator_->GetDefaultAudioEndpoint(eRender, eConsole,
-                                                     &default_device_);
-    if (FAILED(hr)) {
-      Cleanup();
-      return false;
-    }
-
-    // 3. 激活音频会话管理器接口
-    hr = default_device_->Activate(__uuidof(IAudioSessionManager2), CLSCTX_ALL,
-                                   NULL, (void **)&session_manager_);
-    if (FAILED(hr)) {
-      Cleanup();
-      return false;
-    }
-
-    // 4. 获取会话枚举器
-    hr = session_manager_->GetSessionEnumerator(&session_enumerator_);
-    if (FAILED(hr)) {
-      Cleanup();
       return false;
     }
 
@@ -101,21 +77,6 @@ public:
    * @brief 清理所有COM接口资源
    */
   void Cleanup() {
-    if (session_enumerator_) {
-      session_enumerator_->Release();
-      session_enumerator_ = nullptr;
-    }
-
-    if (session_manager_) {
-      session_manager_->Release();
-      session_manager_ = nullptr;
-    }
-
-    if (default_device_) {
-      default_device_->Release();
-      default_device_ = nullptr;
-    }
-
     if (device_enumerator_) {
       device_enumerator_->Release();
       device_enumerator_ = nullptr;
@@ -125,70 +86,119 @@ public:
   }
 
   /**
-   * @brief 获取所有活跃的音频会话信息
+   * @brief 获取所有活跃的音频会话信息（从所有输出设备）
    * @return 音频会话信息列表
    */
   std::vector<AudioSessionInfo> GetActiveSessions() {
-    std::vector<AudioSessionInfo> sessions;
+    std::vector<AudioSessionInfo> all_sessions;
 
     if (!initialized_) {
-      return sessions;
+      return all_sessions;
     }
 
-    int session_count = 0;
-    HRESULT hr = session_enumerator_->GetCount(&session_count);
-    if (FAILED(hr)) {
-      return sessions;
+    // 1. 枚举所有音频输出设备
+    IMMDeviceCollection *device_collection = nullptr;
+    HRESULT hr = device_enumerator_->EnumAudioEndpoints(
+        eRender, DEVICE_STATE_ACTIVE, &device_collection);
+    
+    if (FAILED(hr) || !device_collection) {
+      return all_sessions;
     }
 
-    for (int i = 0; i < session_count; i++) {
-      IAudioSessionControl *session_control = nullptr;
-      hr = session_enumerator_->GetSession(i, &session_control);
+    UINT device_count = 0;
+    hr = device_collection->GetCount(&device_count);
+    if (FAILED(hr) || device_count == 0) {
+      device_collection->Release();
+      return all_sessions;
+    }
 
-      if (FAILED(hr) || !session_control) {
+    // 2. 遍历每个音频输出设备
+    for (UINT i = 0; i < device_count; i++) {
+      IMMDevice *device = nullptr;
+      hr = device_collection->Item(i, &device);
+      
+      if (FAILED(hr) || !device) {
         continue;
       }
 
-      // 检查会话是否活跃
-      if (!IsSessionActive(session_control)) {
-        session_control->Release();
+      // 3. 获取该设备的会话管理器
+      IAudioSessionManager2 *session_manager = nullptr;
+      hr = device->Activate(__uuidof(IAudioSessionManager2), CLSCTX_ALL,
+                           NULL, (void **)&session_manager);
+      
+      if (FAILED(hr) || !session_manager) {
+        device->Release();
         continue;
       }
 
-      AudioSessionInfo info;
-      info.process_id = GetSessionProcessId(session_control);
-      info.display_name = GetSessionDisplayName(session_control);
-      info.icon_path = GetSessionIconPath(session_control);
-      info.is_active = true;
-      info.session_control = session_control;
-
-      // 获取音量信息
-      ISimpleAudioVolume *volume_control = nullptr;
-      hr = session_control->QueryInterface(__uuidof(ISimpleAudioVolume),
-                                           (void **)&volume_control);
-      if (SUCCEEDED(hr) && volume_control) {
-        volume_control->GetMasterVolume(&info.volume);
-        BOOL muted = FALSE;
-        volume_control->GetMute(&muted);
-        info.is_muted = (muted != FALSE);
-        volume_control->Release();
-      } else {
-        info.volume = 1.0f;
-        info.is_muted = false;
+      // 4. 获取会话枚举器
+      IAudioSessionEnumerator *session_enumerator = nullptr;
+      hr = session_manager->GetSessionEnumerator(&session_enumerator);
+      
+      if (FAILED(hr) || !session_enumerator) {
+        session_manager->Release();
+        device->Release();
+        continue;
       }
 
-      sessions.push_back(info);
+      // 5. 枚举该设备上的所有会话
+      int session_count = 0;
+      hr = session_enumerator->GetCount(&session_count);
+      
+      if (SUCCEEDED(hr)) {
+        for (int j = 0; j < session_count; j++) {
+          IAudioSessionControl *session_control = nullptr;
+          hr = session_enumerator->GetSession(j, &session_control);
+
+          if (FAILED(hr) || !session_control) {
+            continue;
+          }
+
+          // 检查会话是否活跃
+          if (!IsSessionActive(session_control)) {
+            session_control->Release();
+            continue;
+          }
+
+          AudioSessionInfo info;
+          info.process_id = GetSessionProcessId(session_control);
+          info.display_name = GetSessionDisplayName(session_control);
+          info.icon_path = GetSessionIconPath(session_control);
+          info.is_active = true;
+          info.session_control = session_control;
+
+          // 获取音量信息
+          ISimpleAudioVolume *volume_control = nullptr;
+          hr = session_control->QueryInterface(__uuidof(ISimpleAudioVolume),
+                                               (void **)&volume_control);
+          if (SUCCEEDED(hr) && volume_control) {
+            volume_control->GetMasterVolume(&info.volume);
+            BOOL muted = FALSE;
+            volume_control->GetMute(&muted);
+            info.is_muted = (muted != FALSE);
+            volume_control->Release();
+          } else {
+            info.volume = 1.0f;
+            info.is_muted = false;
+          }
+
+          all_sessions.push_back(info);
+        }
+      }
+
+      // 清理资源
+      session_enumerator->Release();
+      session_manager->Release();
+      device->Release();
     }
 
-    return sessions;
+    device_collection->Release();
+    return all_sessions;
   }
 
 private:
   bool initialized_{false};
   IMMDeviceEnumerator *device_enumerator_{nullptr};
-  IMMDevice *default_device_{nullptr};
-  IAudioSessionManager2 *session_manager_{nullptr};
-  IAudioSessionEnumerator *session_enumerator_{nullptr};
 
   uint32_t GetSessionProcessId(IAudioSessionControl *session_control) {
     if (!session_control) {
@@ -333,13 +343,18 @@ std::vector<uint32_t> GetSelfProcessIds() {
  *
  * 通过Windows音频会话管理器获取当前正在播放音频的进程信息，
  * 包括进程名称、路径、描述、图标等详细信息。
+ * 
+ * 重要特性：
+ * - 支持枚举所有音频输出设备（包括默认和非默认设备）
+ * - 能够获取使用任意输出设备的应用程序的音频会话
  *
  * 处理流程：
  * 1. 初始化Windows音频会话管理器
- * 2. 枚举所有活跃的音频会话
- * 3. 获取每个会话对应的进程信息
- * 4. 提取进程图标和友好名称
- * 5. 过滤掉当前应用自身的进程
+ * 2. 枚举系统中所有活跃的音频输出设备
+ * 3. 遍历每个设备，获取其上的所有活跃音频会话
+ * 4. 获取每个会话对应的进程信息
+ * 5. 提取进程图标和友好名称
+ * 6. 过滤掉当前应用自身的进程
  *
  * @return 进程信息列表，失败时返回空列表
  */
