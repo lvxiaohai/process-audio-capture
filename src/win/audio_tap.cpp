@@ -321,7 +321,9 @@ AudioTap::ActivateCompleted(IActivateAudioInterfaceAsyncOperation *operation) {
 }
 
 HRESULT AudioTap::InitializeAudioClientInCallback() {
-  // 设置固定的16位PCM格式（与demo保持一致）
+  // 使用更现代的默认格式：48000Hz, 32-bit Float
+  // 这是大多数现代应用（Chrome、游戏、视频播放器）使用的格式
+  // 使用 IEEE Float 格式可以减少格式转换损失
   if (mix_format_) {
     CoTaskMemFree(mix_format_);
   }
@@ -330,10 +332,10 @@ HRESULT AudioTap::InitializeAudioClientInCallback() {
     return E_OUTOFMEMORY;
   }
 
-  mix_format_->wFormatTag = WAVE_FORMAT_PCM;
+  mix_format_->wFormatTag = WAVE_FORMAT_IEEE_FLOAT;  // 使用 Float 格式
   mix_format_->nChannels = 2;
-  mix_format_->nSamplesPerSec = 44100;
-  mix_format_->wBitsPerSample = 16;
+  mix_format_->nSamplesPerSec = 48000;  // 48kHz 是现代应用的标准
+  mix_format_->wBitsPerSample = 32;     // 32-bit Float
   mix_format_->nBlockAlign =
       mix_format_->nChannels * mix_format_->wBitsPerSample / BITS_PER_BYTE;
   mix_format_->nAvgBytesPerSec =
@@ -341,6 +343,7 @@ HRESULT AudioTap::InitializeAudioClientInCallback() {
   mix_format_->cbSize = 0;
 
   // 初始化音频客户端
+  // AUTOCONVERTPCM 会让 Windows 自动处理格式转换
   HRESULT hr = audio_client_->Initialize(
       AUDCLNT_SHAREMODE_SHARED,
       AUDCLNT_STREAMFLAGS_LOOPBACK | AUDCLNT_STREAMFLAGS_EVENTCALLBACK,
@@ -418,7 +421,7 @@ void AudioTap::ProcessAudioData(BYTE *data, UINT32 frames, DWORD flags) {
     return;
   }
 
-  // 计算样本数和转换后的数据大小
+  // 计算样本数和数据大小
   UINT32 sample_count = frames * mix_format_->nChannels;
   size_t float_data_size = sample_count * sizeof(float);
 
@@ -426,10 +429,40 @@ void AudioTap::ProcessAudioData(BYTE *data, UINT32 frames, DWORD flags) {
   thread_local std::vector<float> float_buffer;
   float_buffer.resize(sample_count);
 
-  // 将16位整数转换为32位浮点数
-  int16_t *int_samples = reinterpret_cast<int16_t *>(data);
-  for (UINT32 i = 0; i < sample_count; ++i) {
-    float_buffer[i] = static_cast<float>(int_samples[i]) / 32768.0f;
+  // 根据我们请求的格式处理数据
+  // 使用 AUTOCONVERTPCM 时，Windows 通常会按我们请求的格式返回数据
+  // 但为了健壮性，仍然检查实际格式
+  if (mix_format_->wFormatTag == WAVE_FORMAT_IEEE_FLOAT && 
+      mix_format_->wBitsPerSample == 32) {
+    // 32-bit Float 格式 - 直接复制（最高效，最常见的情况）
+    float *float_samples = reinterpret_cast<float *>(data);
+    memcpy(float_buffer.data(), float_samples, float_data_size);
+  } else if (mix_format_->wFormatTag == WAVE_FORMAT_PCM && 
+             mix_format_->wBitsPerSample == 16) {
+    // 16-bit PCM - 可能在某些旧设备上发生
+    int16_t *int_samples = reinterpret_cast<int16_t *>(data);
+    for (UINT32 i = 0; i < sample_count; ++i) {
+      float_buffer[i] = static_cast<float>(int_samples[i]) / 32768.0f;
+    }
+  } else if (mix_format_->wFormatTag == WAVE_FORMAT_PCM && 
+             mix_format_->wBitsPerSample == 32) {
+    // 32-bit PCM - 理论上可能发生
+    int32_t *int_samples = reinterpret_cast<int32_t *>(data);
+    for (UINT32 i = 0; i < sample_count; ++i) {
+      float_buffer[i] = static_cast<float>(int_samples[i]) / 2147483648.0f;
+    }
+  } else {
+    // 未预期的格式 - 输出警告并尝试按 Float 处理
+    static bool warned = false;
+    if (!warned) {
+      std::wcerr << L"[AudioTap] Warning: Unexpected audio format - Tag: 0x" 
+                 << std::hex << mix_format_->wFormatTag << std::dec
+                 << L", Bits: " << mix_format_->wBitsPerSample << std::endl;
+      warned = true;
+    }
+    // 尝试按 Float 处理（最可能的情况）
+    float *float_samples = reinterpret_cast<float *>(data);
+    memcpy(float_buffer.data(), float_samples, float_data_size);
   }
 
   // 通过回调传递音频数据
