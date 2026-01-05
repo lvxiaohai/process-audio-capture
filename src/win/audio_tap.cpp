@@ -344,10 +344,12 @@ HRESULT AudioTap::InitializeAudioClientInCallback() {
   mix_format_->cbSize = 0;
 
   // 初始化音频客户端
+  // AUTOCONVERTPCM 让 Windows 自动处理格式转换
   // 共享模式下，周期参数必须为 0
   HRESULT hr = audio_client_->Initialize(AUDCLNT_SHAREMODE_SHARED,
                                          AUDCLNT_STREAMFLAGS_LOOPBACK |
-                                             AUDCLNT_STREAMFLAGS_EVENTCALLBACK,
+                                             AUDCLNT_STREAMFLAGS_EVENTCALLBACK |
+                                             AUDCLNT_STREAMFLAGS_AUTOCONVERTPCM,
                                          CAPTURE_BUFFER_DURATION,
                                          0, // shared mode, period must be 0
                                          mix_format_, nullptr);
