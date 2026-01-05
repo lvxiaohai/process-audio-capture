@@ -164,74 +164,74 @@ void AudioTap::SetError(const std::string &message) {
 bool AudioTap::CheckTargetProcessExists() {
   /**
    * 检查目标进程是否存在的多层级验证策略
-   * 
+   *
    * 为了最大化成功率，使用两种互补的检查方法：
    * 1. 直接进程访问：尝试不同权限级别打开进程
    * 2. 进程快照遍历：当直接访问失败时的备用方案
    */
-  
+
   // 定义权限级别数组，按从低到高的顺序排列
   // 这样可以优先使用最小权限，减少被系统拒绝的可能性
   static const DWORD access_levels[] = {
-    PROCESS_QUERY_LIMITED_INFORMATION,  // 最小权限，适用于大多数场景
-    PROCESS_QUERY_INFORMATION,          // 标准查询权限
-    PROCESS_QUERY_INFORMATION | PROCESS_VM_READ  // 包含内存访问权限
+      PROCESS_QUERY_LIMITED_INFORMATION,          // 最小权限，适用于大多数场景
+      PROCESS_QUERY_INFORMATION,                  // 标准查询权限
+      PROCESS_QUERY_INFORMATION | PROCESS_VM_READ // 包含内存访问权限
   };
-  
+
   // 方案1: 渐进式权限检查
   // 从最小权限开始，逐步尝试更高权限级别
   for (DWORD access : access_levels) {
     HANDLE process_handle = OpenProcess(access, FALSE, target_pid_);
     if (process_handle) {
       CloseHandle(process_handle);
-      return true;  // 成功打开进程，说明进程存在且可访问
+      return true; // 成功打开进程，说明进程存在且可访问
     }
   }
-  
+
   // 方案2: 进程快照备用检查
   // 当所有直接访问方式都失败时，使用系统快照进行验证
   HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
   if (snapshot == INVALID_HANDLE_VALUE) {
-    return false;  // 无法创建快照，可能是系统权限问题
+    return false; // 无法创建快照，可能是系统权限问题
   }
-  
+
   // 使用局部RAII类管理快照句柄，确保资源正确释放
   struct SnapshotGuard {
     HANDLE handle;
     explicit SnapshotGuard(HANDLE h) : handle(h) {}
-    ~SnapshotGuard() { 
+    ~SnapshotGuard() {
       if (handle != INVALID_HANDLE_VALUE) {
-        CloseHandle(handle); 
+        CloseHandle(handle);
       }
     }
   } guard(snapshot);
-  
+
   // 遍历系统中的所有进程，查找目标进程ID
   PROCESSENTRY32 pe32;
   pe32.dwSize = sizeof(PROCESSENTRY32);
-  
+
   if (Process32First(snapshot, &pe32)) {
     do {
       if (pe32.th32ProcessID == target_pid_) {
-        return true;  // 在系统快照中找到目标进程
+        return true; // 在系统快照中找到目标进程
       }
     } while (Process32Next(snapshot, &pe32));
   }
-  
-  return false;  // 所有检查方法都失败，进程可能不存在
+
+  return false; // 所有检查方法都失败，进程可能不存在
 }
 
 bool AudioTap::ActivateProcessLoopbackAudioClient() {
   /**
    * 激活进程级音频回环捕获客户端
-   * 
+   *
    * 这是音频捕获的核心初始化过程，包括：
    * 1. 验证目标进程的存在性和可访问性
    * 2. 配置进程级音频回环参数
    * 3. 异步激活音频接口
    * 4. 等待激活完成
    */
-  
+
   // 步骤1: 验证目标进程
   // 使用多层级检查策略确保目标进程存在且可访问
   if (!CheckTargetProcessExists()) {
@@ -242,8 +242,9 @@ bool AudioTap::ActivateProcessLoopbackAudioClient() {
   // 步骤2: 配置进程级音频回环参数
   // 设置音频捕获的目标进程和捕获模式
   AUDIOCLIENT_ACTIVATION_PARAMS activation_params = {};
-  activation_params.ActivationType = AUDIOCLIENT_ACTIVATION_TYPE_PROCESS_LOOPBACK;
-  
+  activation_params.ActivationType =
+      AUDIOCLIENT_ACTIVATION_TYPE_PROCESS_LOOPBACK;
+
   // 配置为包含目标进程树模式，这样可以捕获主进程及其子进程的音频
   activation_params.ProcessLoopbackParams.ProcessLoopbackMode =
       PROCESS_LOOPBACK_MODE_INCLUDE_TARGET_PROCESS_TREE;
@@ -332,10 +333,10 @@ HRESULT AudioTap::InitializeAudioClientInCallback() {
     return E_OUTOFMEMORY;
   }
 
-  mix_format_->wFormatTag = WAVE_FORMAT_IEEE_FLOAT;  // 使用 Float 格式
+  mix_format_->wFormatTag = WAVE_FORMAT_IEEE_FLOAT; // 使用 Float 格式
   mix_format_->nChannels = 2;
-  mix_format_->nSamplesPerSec = 48000;  // 48kHz 是现代应用的标准
-  mix_format_->wBitsPerSample = 32;     // 32-bit Float
+  mix_format_->nSamplesPerSec = 48000; // 48kHz 是现代应用的标准
+  mix_format_->wBitsPerSample = 32;    // 32-bit Float
   mix_format_->nBlockAlign =
       mix_format_->nChannels * mix_format_->wBitsPerSample / BITS_PER_BYTE;
   mix_format_->nAvgBytesPerSec =
@@ -343,12 +344,13 @@ HRESULT AudioTap::InitializeAudioClientInCallback() {
   mix_format_->cbSize = 0;
 
   // 初始化音频客户端
-  // AUTOCONVERTPCM 会让 Windows 自动处理格式转换
-  HRESULT hr = audio_client_->Initialize(
-      AUDCLNT_SHAREMODE_SHARED,
-      AUDCLNT_STREAMFLAGS_LOOPBACK | AUDCLNT_STREAMFLAGS_EVENTCALLBACK,
-      CAPTURE_BUFFER_DURATION, AUDCLNT_STREAMFLAGS_AUTOCONVERTPCM, mix_format_,
-      nullptr);
+  // 共享模式下，周期参数必须为 0
+  HRESULT hr = audio_client_->Initialize(AUDCLNT_SHAREMODE_SHARED,
+                                         AUDCLNT_STREAMFLAGS_LOOPBACK |
+                                             AUDCLNT_STREAMFLAGS_EVENTCALLBACK,
+                                         CAPTURE_BUFFER_DURATION,
+                                         0, // shared mode, period must be 0
+                                         mix_format_, nullptr);
 
   if (FAILED(hr)) {
     SetError("Audio client initialization failed - HRESULT: 0x" +
@@ -403,7 +405,10 @@ void AudioTap::CaptureThreadProc() {
                                       &device_position, &qpc_position);
 
       if (SUCCEEDED(hr)) {
-        ProcessAudioData(data, frames_available, flags);
+        // 只在非静音时处理数据
+        if (!(flags & AUDCLNT_BUFFERFLAGS_SILENT)) {
+          ProcessAudioData(data, frames_available, flags);
+        }
         hr = capture_client_->ReleaseBuffer(frames_available);
       }
 
@@ -432,19 +437,19 @@ void AudioTap::ProcessAudioData(BYTE *data, UINT32 frames, DWORD flags) {
   // 根据我们请求的格式处理数据
   // 使用 AUTOCONVERTPCM 时，Windows 通常会按我们请求的格式返回数据
   // 但为了健壮性，仍然检查实际格式
-  if (mix_format_->wFormatTag == WAVE_FORMAT_IEEE_FLOAT && 
+  if (mix_format_->wFormatTag == WAVE_FORMAT_IEEE_FLOAT &&
       mix_format_->wBitsPerSample == 32) {
     // 32-bit Float 格式 - 直接复制（最高效，最常见的情况）
     float *float_samples = reinterpret_cast<float *>(data);
     memcpy(float_buffer.data(), float_samples, float_data_size);
-  } else if (mix_format_->wFormatTag == WAVE_FORMAT_PCM && 
+  } else if (mix_format_->wFormatTag == WAVE_FORMAT_PCM &&
              mix_format_->wBitsPerSample == 16) {
     // 16-bit PCM - 可能在某些旧设备上发生
     int16_t *int_samples = reinterpret_cast<int16_t *>(data);
     for (UINT32 i = 0; i < sample_count; ++i) {
       float_buffer[i] = static_cast<float>(int_samples[i]) / 32768.0f;
     }
-  } else if (mix_format_->wFormatTag == WAVE_FORMAT_PCM && 
+  } else if (mix_format_->wFormatTag == WAVE_FORMAT_PCM &&
              mix_format_->wBitsPerSample == 32) {
     // 32-bit PCM - 理论上可能发生
     int32_t *int_samples = reinterpret_cast<int32_t *>(data);
@@ -455,7 +460,7 @@ void AudioTap::ProcessAudioData(BYTE *data, UINT32 frames, DWORD flags) {
     // 未预期的格式 - 输出警告并尝试按 Float 处理
     static bool warned = false;
     if (!warned) {
-      std::wcerr << L"[AudioTap] Warning: Unexpected audio format - Tag: 0x" 
+      std::wcerr << L"[AudioTap] Warning: Unexpected audio format - Tag: 0x"
                  << std::hex << mix_format_->wFormatTag << std::dec
                  << L", Bits: " << mix_format_->wBitsPerSample << std::endl;
       warned = true;
