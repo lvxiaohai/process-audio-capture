@@ -66,6 +66,14 @@ public:
    * 停止当前的音频捕获，释放相关资源。
    */
   virtual bool StopCapture() = 0;
+
+  /**
+   * @brief 检查是否正在捕获音频
+   * @return 是否正在捕获
+   *
+   * 返回当前是否正在进行音频捕获。
+   */
+  virtual bool IsCapturing() const = 0;
 };
 
 /**

@@ -60,6 +60,12 @@ public:
    */
   bool StopCapture() override;
 
+  /**
+   * @brief 检查是否正在捕获音频
+   * @return 是否正在捕获
+   */
+  bool IsCapturing() const override;
+
 private:
   std::atomic<bool> capturing_{false};   ///< 是否正在捕获音频
   std::atomic<bool> initialized_{false}; ///< 是否已初始化

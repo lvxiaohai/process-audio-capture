@@ -41,6 +41,7 @@ public:
 
   bool StartCapture(uint32_t pid, AudioDataCallback callback) override;
   bool StopCapture() override;
+  bool IsCapturing() const override;
 
 private:
   // 状态管理

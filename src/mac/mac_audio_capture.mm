@@ -91,6 +91,8 @@ bool MacAudioCapture::StopCapture() {
   return true;
 }
 
+bool MacAudioCapture::IsCapturing() const { return capturing_.load(); }
+
 /**
  * @brief 工厂函数 - 创建平台特定的实现
  * @return 平台特定的AudioCapture实例

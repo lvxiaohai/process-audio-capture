@@ -27,6 +27,9 @@ interface AudioCaptureAddon {
 
   /** 停止捕获 */
   stopCapture(): boolean;
+
+  /** 检查是否正在捕获音频 */
+  isCapturing(): boolean;
 }
 
 interface OsVersion {
@@ -154,25 +157,15 @@ class AudioCaptureStub extends EventEmitter<AudioCaptureEvents> {
  */
 export class AudioCapture extends AudioCaptureStub {
   private addon: AudioCaptureAddon;
-  private _capturing: boolean;
 
   constructor() {
     super();
     // 创建C++类的实例
     this.addon = new native.AudioCaptureAddon();
-    this._capturing = false;
   }
 
   public get isCapturing(): boolean {
-    return this._capturing;
-  }
-
-  private set isCapturing(value: boolean) {
-    if (value === this._capturing) {
-      return;
-    }
-    this._capturing = value;
-    this.emit("capturing", value);
+    return this.addon.isCapturing();
   }
 
   isPlatformSupported(): boolean {
@@ -230,17 +223,13 @@ export class AudioCapture extends AudioCaptureStub {
       throw new Error("没有音频捕获权限");
     }
 
-    if (this.isCapturing) {
-      throw new Error("已经在捕获音频，请先停止");
-    }
-
     try {
       const result = this.addon.startCapture(pid, (audioData) => {
         callback?.(audioData);
         this.emit("audio-data", audioData);
       });
       if (result) {
-        this.isCapturing = true;
+        this.emit("capturing", true);
       }
 
       return result;
@@ -256,7 +245,7 @@ export class AudioCapture extends AudioCaptureStub {
 
     const result = this.addon.stopCapture();
     if (result) {
-      this.isCapturing = false;
+      this.emit("capturing", false);
     }
 
     return result;

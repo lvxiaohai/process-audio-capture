@@ -98,6 +98,8 @@ bool WinAudioCapture::StopCapture() {
   return true;
 }
 
+bool WinAudioCapture::IsCapturing() const { return capturing_.load(); }
+
 void WinAudioCapture::CleanupCapture() {
   callback_ = nullptr;
   current_pid_ = 0;

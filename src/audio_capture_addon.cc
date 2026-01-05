@@ -43,6 +43,7 @@ public:
                            &AudioCaptureAddon::GetProcessList),
             InstanceMethod("startCapture", &AudioCaptureAddon::StartCapture),
             InstanceMethod("stopCapture", &AudioCaptureAddon::StopCapture),
+            InstanceMethod("isCapturing", &AudioCaptureAddon::IsCapturing),
         });
 
     // 创建构造函数的持久引用
@@ -303,6 +304,13 @@ private:
       }
     }
 
+    return Napi::Boolean::New(env, result);
+  }
+
+  // 检查是否正在捕获
+  Napi::Value IsCapturing(const Napi::CallbackInfo &info) {
+    Napi::Env env = info.Env();
+    bool result = g_audio_capture->IsCapturing();
     return Napi::Boolean::New(env, result);
   }
 };
